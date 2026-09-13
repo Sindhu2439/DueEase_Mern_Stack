@@ -2,37 +2,54 @@ const jwt = require("jsonwebtoken");
 
 const authMiddleware = (req, res, next) => {
     try {
-        // Get token from Authorization header
         const authHeader = req.headers.authorization;
 
         if (!authHeader) {
             return res.status(401).json({
-                message: "Access denied. No token provided."
+                message: "No authorization token provided"
             });
         }
 
-        // Extract token from "Bearer TOKEN"
+        if (!authHeader.startsWith("Bearer ")) {
+            return res.status(401).json({
+                message: "Invalid authorization format"
+            });
+        }
+
         const token = authHeader.split(" ")[1];
 
-        if (!token) {
-            return res.status(401).json({
-                message: "Access denied. Invalid token format."
-            });
-        }
-
-        // Verify token
         const decoded = jwt.verify(
             token,
             process.env.JWT_SECRET
         );
 
-        // Store user ID in request
-        req.userId = decoded.userId;
+        const userId =
+            decoded.id ||
+            decoded.userId ||
+            decoded._id;
 
-        // Continue to the next route
+        if (!userId) {
+            return res.status(401).json({
+                message: "User ID not found in token"
+            });
+        }
+
+        // Make user ID available to all protected routes
+        req.userId = userId;
+
+        // Also keep the user object available
+        req.user = {
+            id: userId
+        };
+
         next();
 
     } catch (error) {
+        console.error(
+            "Authentication error:",
+            error.message
+        );
+
         return res.status(401).json({
             message: "Invalid or expired token"
         });

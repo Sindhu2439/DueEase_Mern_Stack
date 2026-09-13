@@ -5,44 +5,35 @@ function Balances() {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [balances, setBalances] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const fetchGroups = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        "http://localhost:5000/api/groups",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setGroups(data.groups || data);
+      } else {
+        alert(data.message || "Unable to load groups");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unable to connect to server");
+    }
+  };
 
   useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          alert("Please login again");
-          return;
-        }
-
-        const response = await fetch(
-          "http://localhost:5000/api/groups",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setGroups(data.groups || data || []);
-        } else {
-          alert(
-            data.message || "Unable to load groups"
-          );
-        }
-      } catch (error) {
-        console.error(error);
-        alert("Unable to connect to server");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchGroups();
   }, []);
 
@@ -53,6 +44,8 @@ function Balances() {
     }
 
     try {
+      setLoading(true);
+
       const token = localStorage.getItem("token");
 
       const response = await fetch(
@@ -70,12 +63,14 @@ function Balances() {
         setBalances(data.balances || []);
       } else {
         alert(
-          data.message || "Unable to load balances"
+          data.message || "Unable to calculate balances"
         );
       }
     } catch (error) {
       console.error(error);
       alert("Unable to connect to server");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -86,28 +81,39 @@ function Balances() {
     fetchBalances(groupId);
   };
 
+  const totalReceivable = balances
+    .filter((person) => Number(person.balance) > 0.01)
+    .reduce(
+      (total, person) =>
+        total + Number(person.balance),
+      0
+    );
+
+  const totalPayable = balances
+    .filter((person) => Number(person.balance) < -0.01)
+    .reduce(
+      (total, person) =>
+        total + Math.abs(Number(person.balance)),
+      0
+    );
+
+  const settledCount = balances.filter(
+    (person) =>
+      Math.abs(Number(person.balance)) <= 0.01
+  ).length;
+
   const getBalanceStatus = (balance) => {
-    if (balance > 0) {
-      return {
-        text: "Should receive",
-        icon: "↑",
-        className: "positive"
-      };
+    const value = Number(balance);
+
+    if (value > 0.01) {
+      return "receive";
     }
 
-    if (balance < 0) {
-      return {
-        text: "Owes money",
-        icon: "↓",
-        className: "negative"
-      };
+    if (value < -0.01) {
+      return "pay";
     }
 
-    return {
-      text: "Settled",
-      icon: "✓",
-      className: "neutral"
-    };
+    return "settled";
   };
 
   return (
@@ -120,171 +126,286 @@ function Balances() {
           <h1>Balances</h1>
 
           <p>
-            Track who owes money and who should receive
+            See who owes money and who should receive
             money in your group.
           </p>
         </div>
 
-        {/* Group Selection */}
+        {/* Select Group */}
 
-        <section className="form-card balance-selector">
+        <section className="form-card">
           <h2>Select Group</h2>
 
           <p>
-            Choose a group to view its current balances.
+            Choose a group to calculate the latest
+            balances.
           </p>
 
-          {loading ? (
-            <p>Loading groups...</p>
-          ) : groups.length === 0 ? (
-            <div className="empty-state">
-              <h3>No groups found</h3>
+          <select
+            value={selectedGroup}
+            onChange={handleGroupChange}
+          >
+            <option value="">
+              Select a group
+            </option>
 
-              <p>
-                Create a group first to view balances.
-              </p>
-            </div>
-          ) : (
-            <select
-              value={selectedGroup}
-              onChange={handleGroupChange}
-            >
-              <option value="">
-                Select a group
+            {groups.map((group) => (
+              <option
+                key={group._id}
+                value={group._id}
+              >
+                {group.name}
               </option>
-
-              {groups.map((group) => (
-                <option
-                  key={group._id}
-                  value={group._id}
-                >
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          )}
+            ))}
+          </select>
         </section>
 
-        {/* Balances */}
-
         {selectedGroup && (
-          <section className="balances-section">
+          <>
+            {/* Summary */}
 
-            <div className="section-title">
-              <div>
-                <h2>Group Balances</h2>
+            <section className="balance-summary">
 
-                <p className="section-subtitle">
-                  Current financial position of each
-                  member.
-                </p>
+              <div className="balance-summary-card">
+                <span className="balance-summary-icon">
+                  💚
+                </span>
+
+                <div>
+                  <p>You should receive</p>
+
+                  <h2>
+                    ₹{totalReceivable.toFixed(2)}
+                  </h2>
+                </div>
               </div>
 
-              <span>
-                {balances.length} Members
-              </span>
-            </div>
+              <div className="balance-summary-card">
+                <span className="balance-summary-icon">
+                  🔴
+                </span>
 
-            {balances.length === 0 ? (
-              <div className="empty-state">
-                <h3>No balances available</h3>
+                <div>
+                  <p>Total to be paid</p>
 
-                <p>
-                  Add some expenses to calculate
-                  balances.
-                </p>
+                  <h2>
+                    ₹{totalPayable.toFixed(2)}
+                  </h2>
+                </div>
               </div>
-            ) : (
-              <div className="balances-grid">
 
-                {balances.map((person) => {
-                  const balance = Number(
-                    person.balance
-                  );
+              <div className="balance-summary-card">
+                <span className="balance-summary-icon">
+                  ⚪
+                </span>
 
-                  const status =
-                    getBalanceStatus(balance);
+                <div>
+                  <p>Settled members</p>
 
-                  return (
-                    <div
-                      className={`balance-card ${status.className}`}
-                      key={person.user}
-                    >
+                  <h2>
+                    {settledCount}
+                  </h2>
+                </div>
+              </div>
 
-                      <div className="balance-card-top">
+            </section>
 
-                        <div className="balance-avatar">
-                          {person.user
-                            ? person.user
-                                .charAt(0)
-                                .toUpperCase()
-                            : "U"}
+            {/* Balances */}
+
+            <section className="balances-section">
+
+              <div className="section-title">
+
+                <div>
+                  <h2>
+                    Member Balances
+                  </h2>
+
+                  <p>
+                    Current financial position of
+                    each group member.
+                  </p>
+                </div>
+
+                <span>
+                  {balances.length} Members
+                </span>
+
+              </div>
+
+              {loading ? (
+                <div className="empty-state">
+                  <h3>
+                    Calculating balances...
+                  </h3>
+
+                  <p>
+                    Please wait while DueEase
+                    calculates the latest balances.
+                  </p>
+                </div>
+              ) : balances.length === 0 ? (
+                <div className="empty-state">
+                  <h3>
+                    No balance data
+                  </h3>
+
+                  <p>
+                    Add some expenses to this group
+                    to calculate balances.
+                  </p>
+                </div>
+              ) : (
+                <div className="balance-list">
+
+                  {balances.map((person) => {
+
+                    const balance =
+                      Number(person.balance);
+
+                    const status =
+                      getBalanceStatus(
+                        balance
+                      );
+
+                    return (
+                      <div
+                        className={`balance-card balance-${status}`}
+                        key={
+                          person.user ||
+                          person.email
+                        }
+                      >
+
+                        <div className="balance-person">
+
+                          <div className="balance-avatar">
+                            {person.user
+                              ? person.user
+                                  .charAt(0)
+                                  .toUpperCase()
+                              : person.email
+                                  ?.charAt(0)
+                                  .toUpperCase() ||
+                                "U"}
+                          </div>
+
+                          <div>
+                            <h3>
+                              {person.user ||
+                                "Unknown User"}
+                            </h3>
+
+                            <p>
+                              {person.email}
+                            </p>
+                          </div>
+
                         </div>
 
-                        <div>
-                          <h3>
-                            {person.user}
-                          </h3>
+                        <div className="balance-result">
 
-                          <p>
-                            {person.email}
-                          </p>
+                          {status === "receive" && (
+                            <>
+                              <span className="balance-label">
+                                You should receive
+                              </span>
+
+                              <strong>
+                                +₹
+                                {balance.toFixed(
+                                  2
+                                )}
+                              </strong>
+                            </>
+                          )}
+
+                          {status === "pay" && (
+                            <>
+                              <span className="balance-label">
+                                Needs to pay
+                              </span>
+
+                              <strong>
+                                -₹
+                                {Math.abs(
+                                  balance
+                                ).toFixed(2)}
+                              </strong>
+                            </>
+                          )}
+
+                          {status === "settled" && (
+                            <>
+                              <span className="balance-label">
+                                Settled
+                              </span>
+
+                              <strong>
+                                ₹0.00
+                              </strong>
+                            </>
+                          )}
+
                         </div>
 
                       </div>
+                    );
+                  })}
 
-                      <div className="balance-card-divider" />
+                </div>
+              )}
 
-                      <div className="balance-status">
-                        <span
-                          className="balance-status-icon"
-                        >
-                          {status.icon}
-                        </span>
+            </section>
 
-                        <span>
-                          {status.text}
-                        </span>
-                      </div>
+            {/* Explanation */}
 
-                      <div className="balance-amount">
-                        ₹
-                        {Math.abs(balance).toFixed(2)}
-                      </div>
+            <section className="balance-info">
 
-                      <div className="balance-description">
+              <h2>
+                How to read your balance
+              </h2>
 
-                        {balance > 0 && (
-                          <span>
-                            This member should receive
-                            this amount.
-                          </span>
-                        )}
+              <div className="balance-info-grid">
 
-                        {balance < 0 && (
-                          <span>
-                            This member needs to pay
-                            this amount.
-                          </span>
-                        )}
+                <div>
+                  <strong>
+                    💚 Positive balance
+                  </strong>
 
-                        {balance === 0 && (
-                          <span>
-                            This member has no pending
-                            balance.
-                          </span>
-                        )}
+                  <p>
+                    This member should receive
+                    money from the group.
+                  </p>
+                </div>
 
-                      </div>
+                <div>
+                  <strong>
+                    🔴 Negative balance
+                  </strong>
 
-                    </div>
-                  );
-                })}
+                  <p>
+                    This member needs to pay money
+                    to the group.
+                  </p>
+                </div>
+
+                <div>
+                  <strong>
+                    ⚪ Zero balance
+                  </strong>
+
+                  <p>
+                    This member has no outstanding
+                    amount.
+                  </p>
+                </div>
 
               </div>
-            )}
 
-          </section>
+            </section>
+
+          </>
         )}
 
       </main>

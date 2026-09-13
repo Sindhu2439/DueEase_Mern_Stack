@@ -7,15 +7,22 @@ function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    if (!email || !password) {
-      alert("Please enter email and password");
+    setError("");
+
+    if (!email.trim() || !password) {
+      setError("Please enter your email and password.");
       return;
     }
 
     try {
+      setLoading(true);
+
       const response = await fetch(
         "http://localhost:5000/api/auth/login",
         {
@@ -24,7 +31,7 @@ function Login() {
             "Content-Type": "application/json"
           },
           body: JSON.stringify({
-            email,
+            email: email.trim(),
             password
           })
         }
@@ -32,63 +39,136 @@ function Login() {
 
       const data = await response.json();
 
-      if (response.ok) {
-        localStorage.setItem("token", data.token);
-
-        alert("Login successful!");
-
-        navigate("/dashboard");
-      } else {
-        alert(data.message || "Invalid email or password");
+      if (!response.ok) {
+        setError(
+          data.message || "Invalid email or password."
+        );
+        return;
       }
+
+      if (!data.token) {
+        setError(
+          "Login succeeded, but no authentication token was received."
+        );
+        return;
+      }
+
+      localStorage.setItem("token", data.token);
+
+      navigate("/dashboard");
+
     } catch (error) {
-      console.error(error);
-      alert("Unable to connect to server");
+      console.error("Login error:", error);
+
+      setError(
+        "Unable to connect to the server. Make sure the backend is running."
+      );
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div className="auth-container">
+    <div className="auth-page">
+
       <div className="auth-card">
-        <h1>DueEase</h1>
 
-        <p className="auth-subtitle">
-          Smart Group Expense Management
-        </p>
+        <div className="auth-header">
 
-        <h2>Login</h2>
+          <div className="auth-logo">
+            💸
+          </div>
 
-        <form onSubmit={handleLogin}>
-          <label>Email</label>
+          <h1>
+            Welcome to DueEase
+          </h1>
 
-          <input
-            type="email"
-            placeholder="Enter your email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
+          <p>
+            Manage shared expenses with ease.
+          </p>
 
-          <label>Password</label>
+        </div>
 
-          <input
-            type="password"
-            placeholder="Enter your password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
 
-          <button type="submit">
-            Login
+        <form
+          className="auth-form"
+          onSubmit={handleLogin}
+        >
+
+          <div className="form-group">
+
+            <label htmlFor="email">
+              Email Address
+            </label>
+
+            <input
+              id="email"
+              type="email"
+              placeholder="Enter your email"
+              value={email}
+              onChange={(e) =>
+                setEmail(e.target.value)
+              }
+              autoComplete="email"
+            />
+
+          </div>
+
+
+          <div className="form-group">
+
+            <label htmlFor="password">
+              Password
+            </label>
+
+            <input
+              id="password"
+              type="password"
+              placeholder="Enter your password"
+              value={password}
+              onChange={(e) =>
+                setPassword(e.target.value)
+              }
+              autoComplete="current-password"
+            />
+
+          </div>
+
+
+          {error && (
+            <div className="auth-error">
+              ⚠️ {error}
+            </div>
+          )}
+
+
+          <button
+            type="submit"
+            className="auth-button"
+            disabled={loading}
+          >
+            {loading
+              ? "Signing in..."
+              : "Sign In"}
           </button>
+
         </form>
 
-        <p className="auth-link">
-          Don't have an account?{" "}
+
+        <div className="auth-footer">
+
+          <p>
+            Don't have an account?
+          </p>
+
           <Link to="/register">
             Create an account
           </Link>
-        </p>
+
+        </div>
+
       </div>
+
     </div>
   );
 }

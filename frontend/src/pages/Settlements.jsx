@@ -5,44 +5,35 @@ function Settlements() {
   const [groups, setGroups] = useState([]);
   const [selectedGroup, setSelectedGroup] = useState("");
   const [settlements, setSettlements] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  const fetchGroups = async () => {
+    try {
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        "http://localhost:5000/api/groups",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setGroups(data.groups || data);
+      } else {
+        alert(data.message || "Unable to load groups");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unable to connect to server");
+    }
+  };
 
   useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const token = localStorage.getItem("token");
-
-        if (!token) {
-          alert("Please login again");
-          return;
-        }
-
-        const response = await fetch(
-          "http://localhost:5000/api/groups",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
-          }
-        );
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setGroups(data.groups || data || []);
-        } else {
-          alert(
-            data.message || "Unable to load groups"
-          );
-        }
-      } catch (error) {
-        console.error(error);
-        alert("Unable to connect to server");
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchGroups();
   }, []);
 
@@ -53,6 +44,8 @@ function Settlements() {
     }
 
     try {
+      setLoading(true);
+
       const token = localStorage.getItem("token");
 
       const response = await fetch(
@@ -67,18 +60,18 @@ function Settlements() {
       const data = await response.json();
 
       if (response.ok) {
-        setSettlements(
-          data.settlements || []
-        );
+        setSettlements(data.settlements || []);
       } else {
         alert(
           data.message ||
-            "Unable to load settlements"
+            "Unable to calculate settlements"
         );
       }
     } catch (error) {
       console.error(error);
       alert("Unable to connect to server");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,6 +81,12 @@ function Settlements() {
     setSelectedGroup(groupId);
     fetchSettlements(groupId);
   };
+
+  const totalSettlementAmount = settlements.reduce(
+    (total, settlement) =>
+      total + Number(settlement.amount || 0),
+    0
+  );
 
   return (
     <div>
@@ -104,170 +103,287 @@ function Settlements() {
           </p>
         </div>
 
-        {/* Group Selection */}
+        {/* Select Group */}
 
-        <section className="form-card settlement-selector">
+        <section className="form-card">
           <h2>Select Group</h2>
 
           <p>
-            Choose a group to generate its settlement
-            plan.
+            Choose a group to calculate the optimized
+            settlement plan.
           </p>
 
-          {loading ? (
-            <p>Loading groups...</p>
-          ) : groups.length === 0 ? (
-            <div className="empty-state">
-              <h3>No groups found</h3>
+          <select
+            value={selectedGroup}
+            onChange={handleGroupChange}
+          >
+            <option value="">
+              Select a group
+            </option>
 
-              <p>
-                Create a group first to generate
-                settlements.
-              </p>
-            </div>
-          ) : (
-            <select
-              value={selectedGroup}
-              onChange={handleGroupChange}
-            >
-              <option value="">
-                Select a group
+            {groups.map((group) => (
+              <option
+                key={group._id}
+                value={group._id}
+              >
+                {group.name}
               </option>
-
-              {groups.map((group) => (
-                <option
-                  key={group._id}
-                  value={group._id}
-                >
-                  {group.name}
-                </option>
-              ))}
-            </select>
-          )}
+            ))}
+          </select>
         </section>
 
-        {/* Settlement Plan */}
-
         {selectedGroup && (
-          <section className="settlements-section">
+          <>
+            {/* Summary */}
 
-            <div className="section-title">
-              <div>
-                <h2>Settlement Plan</h2>
+            <section className="settlement-summary">
 
-                <p className="section-subtitle">
-                  Minimum transactions required to
-                  settle all group debts.
-                </p>
+              <div className="settlement-summary-card">
+                <span className="settlement-icon">
+                  🤝
+                </span>
+
+                <div>
+                  <p>
+                    Required Payments
+                  </p>
+
+                  <h2>
+                    {settlements.length}
+                  </h2>
+                </div>
               </div>
 
-              <span>
-                {settlements.length} Payments
-              </span>
-            </div>
+              <div className="settlement-summary-card">
+                <span className="settlement-icon">
+                  💰
+                </span>
 
-            {settlements.length === 0 ? (
-              <div className="empty-state">
-                <div className="settlement-success-icon">
-                  ✓
+                <div>
+                  <p>
+                    Total Settlement Amount
+                  </p>
+
+                  <h2>
+                    ₹
+                    {totalSettlementAmount.toFixed(
+                      2
+                    )}
+                  </h2>
+                </div>
+              </div>
+
+            </section>
+
+            {/* Settlement Plan */}
+
+            <section className="settlements-section">
+
+              <div className="section-title">
+
+                <div>
+                  <h2>
+                    Settlement Plan
+                  </h2>
+
+                  <p>
+                    DueEase simplifies the group's
+                    debts into the minimum necessary
+                    payments.
+                  </p>
                 </div>
 
-                <h3>All settled!</h3>
+                <span>
+                  {settlements.length} Payments
+                </span>
 
-                <p>
-                  No payments are currently required
-                  for this group.
-                </p>
               </div>
-            ) : (
-              <div className="settlements-grid">
 
-                {settlements.map(
-                  (settlement, index) => (
-                    <div
-                      className="settlement-card"
-                      key={index}
-                    >
+              {loading ? (
+                <div className="empty-state">
 
-                      <div className="settlement-number">
-                        {index + 1}
-                      </div>
+                  <h3>
+                    Calculating settlements...
+                  </h3>
 
-                      <div className="settlement-content">
+                  <p>
+                    DueEase is optimizing the payment
+                    plan.
+                  </p>
 
-                        <div className="settlement-payment">
+                </div>
+              ) : settlements.length === 0 ? (
+                <div className="empty-state">
 
-                          <div className="settlement-person">
-                            <div className="settlement-avatar">
-                              {settlement.from
-                                ? settlement.from
-                                    .charAt(0)
-                                    .toUpperCase()
-                                : "U"}
-                            </div>
+                  <h3>
+                    🎉 No payments required
+                  </h3>
 
-                            <div>
-                              <span className="settlement-label">
-                                Pays
-                              </span>
+                  <p>
+                    Everyone in this group is
+                    currently settled.
+                  </p>
 
-                              <strong>
-                                {settlement.from}
-                              </strong>
+                </div>
+              ) : (
+                <div className="settlement-list">
 
-                              <small>
-                                {settlement.fromEmail}
-                              </small>
-                            </div>
+                  {settlements.map(
+                    (settlement, index) => (
+                      <div
+                        className="settlement-card"
+                        key={index}
+                      >
+
+                        <div className="settlement-person">
+
+                          <div className="settlement-avatar">
+                            {settlement.from
+                              ? settlement.from
+                                  .charAt(0)
+                                  .toUpperCase()
+                              : "U"}
                           </div>
 
-                          <div className="settlement-arrow">
-                            →
+                          <div>
+                            <span>
+                              From
+                            </span>
+
+                            <h3>
+                              {settlement.from ||
+                                "Unknown"}
+                            </h3>
+
+                            <p>
+                              {settlement.fromEmail}
+                            </p>
                           </div>
 
-                          <div className="settlement-person">
-                            <div className="settlement-avatar receiver">
-                              {settlement.to
-                                ? settlement.to
-                                    .charAt(0)
-                                    .toUpperCase()
-                                : "U"}
-                            </div>
+                        </div>
 
-                            <div>
-                              <span className="settlement-label">
-                                Receives
-                              </span>
+                        <div className="settlement-arrow">
+                          →
+                        </div>
 
-                              <strong>
-                                {settlement.to}
-                              </strong>
+                        <div className="settlement-person">
 
-                              <small>
-                                {settlement.toEmail}
-                              </small>
-                            </div>
+                          <div className="settlement-avatar">
+                            {settlement.to
+                              ? settlement.to
+                                  .charAt(0)
+                                  .toUpperCase()
+                              : "U"}
+                          </div>
+
+                          <div>
+                            <span>
+                              To
+                            </span>
+
+                            <h3>
+                              {settlement.to ||
+                                "Unknown"}
+                            </h3>
+
+                            <p>
+                              {settlement.toEmail}
+                            </p>
                           </div>
 
                         </div>
 
                         <div className="settlement-amount">
-                          ₹
-                          {Number(
-                            settlement.amount
-                          ).toFixed(2)}
+
+                          <span>
+                            Amount
+                          </span>
+
+                          <strong>
+                            ₹
+                            {Number(
+                              settlement.amount
+                            ).toFixed(2)}
+                          </strong>
+
                         </div>
 
                       </div>
+                    )
+                  )}
 
-                    </div>
-                  )
-                )}
+                </div>
+              )}
+
+            </section>
+
+            {/* How It Works */}
+
+            <section className="settlement-info">
+
+              <h2>
+                How DueEase simplifies debts
+              </h2>
+
+              <p>
+                Instead of requiring every person to
+                pay every other person separately,
+                DueEase calculates an optimized
+                settlement plan.
+              </p>
+
+              <div className="settlement-info-grid">
+
+                <div>
+                  <span>
+                    1
+                  </span>
+
+                  <h3>
+                    Calculate balances
+                  </h3>
+
+                  <p>
+                    Determine who should receive
+                    money and who needs to pay.
+                  </p>
+                </div>
+
+                <div>
+                  <span>
+                    2
+                  </span>
+
+                  <h3>
+                    Match debts
+                  </h3>
+
+                  <p>
+                    Match people who owe money with
+                    people who should receive money.
+                  </p>
+                </div>
+
+                <div>
+                  <span>
+                    3
+                  </span>
+
+                  <h3>
+                    Minimize payments
+                  </h3>
+
+                  <p>
+                    Generate a smaller set of
+                    transactions to settle the group.
+                  </p>
+                </div>
 
               </div>
-            )}
 
-          </section>
+            </section>
+
+          </>
         )}
 
       </main>

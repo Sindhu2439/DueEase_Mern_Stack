@@ -7,6 +7,7 @@ import Groups from "./pages/Groups";
 import Expenses from "./pages/Expenses";
 import Balances from "./pages/Balances";
 import Settlements from "./pages/Settlements";
+import Analytics from "./pages/Analytics";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -15,11 +16,10 @@ function App() {
     <BrowserRouter>
       <Routes>
 
-        {/* Public Routes */}
         <Route path="/" element={<Login />} />
+
         <Route path="/register" element={<Register />} />
 
-        {/* Protected Routes */}
         <Route
           path="/dashboard"
           element={
@@ -61,6 +61,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Settlements />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/analytics"
+          element={
+            <ProtectedRoute>
+              <Analytics />
             </ProtectedRoute>
           }
         />
