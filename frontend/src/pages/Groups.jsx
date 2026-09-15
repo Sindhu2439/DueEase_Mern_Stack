@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "../Navbar";
+import socket from "../socket";
 
 function Groups() {
   const [groups, setGroups] = useState([]);
@@ -41,7 +42,23 @@ function Groups() {
 
   useEffect(() => {
     fetchGroups();
+
+    // Connect to Socket.IO
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
+
+  useEffect(() => {
+    // Join all existing groups
+    if (groups.length > 0) {
+      groups.forEach((group) => {
+        socket.emit("joinGroup", group._id);
+      });
+    }
+  }, [groups]);
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();

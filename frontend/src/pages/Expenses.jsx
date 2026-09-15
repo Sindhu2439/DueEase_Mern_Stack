@@ -1,3 +1,4 @@
+import socket from "../socket";
 import { useEffect, useState } from "react";
 import Navbar from "../Navbar";
 
@@ -12,8 +13,21 @@ function Expenses() {
 
   const [splits, setSplits] = useState([]);
   const [expenses, setExpenses] = useState([]);
+
   const [loading, setLoading] = useState(false);
   const [deletingExpenseId, setDeletingExpenseId] = useState("");
+
+  // Search and filter
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("all");
+
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const expensesPerPage = 6;
+
+  // --------------------------------------------------
+  // Fetch Groups
+  // --------------------------------------------------
 
   const fetchGroups = async () => {
     try {
@@ -45,28 +59,19 @@ function Expenses() {
     fetchGroups();
   }, []);
 
+  // --------------------------------------------------
+  // Selected Group
+  // --------------------------------------------------
+
   const selectedGroupData = groups.find(
     (group) => group._id === selectedGroup
   );
 
   const members = selectedGroupData?.members || [];
 
-  useEffect(() => {
-    if (members.length > 0) {
-      setPaidBy(members[0]._id);
-
-      setSplits(
-        members.map((member) => ({
-          user: member._id,
-          amount: "",
-          percentage: ""
-        }))
-      );
-    } else {
-      setPaidBy("");
-      setSplits([]);
-    }
-  }, [selectedGroup, groups]);
+  // --------------------------------------------------
+  // Fetch Expenses
+  // --------------------------------------------------
 
   const fetchExpenses = async (groupId) => {
     if (!groupId) {
@@ -99,15 +104,85 @@ function Expenses() {
     }
   };
 
+  // --------------------------------------------------
+  // Real-time Expense Updates
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (!selectedGroup) {
+      return;
+    }
+
+    socket.connect();
+
+    socket.emit("joinGroup", selectedGroup);
+
+    const handleExpenseAdded = (data) => {
+      console.log("Real-time expense added:", data);
+
+      fetchExpenses(selectedGroup);
+    };
+
+    const handleExpenseDeleted = (data) => {
+      console.log("Real-time expense deleted:", data);
+
+      fetchExpenses(selectedGroup);
+    };
+
+    socket.on("expenseAdded", handleExpenseAdded);
+    socket.on("expenseDeleted", handleExpenseDeleted);
+
+    return () => {
+      socket.off("expenseAdded", handleExpenseAdded);
+      socket.off("expenseDeleted", handleExpenseDeleted);
+    };
+  }, [selectedGroup]);
+
+  // --------------------------------------------------
+  // Initialize Members When Group Changes
+  // --------------------------------------------------
+
+  useEffect(() => {
+    if (members.length > 0) {
+      setPaidBy(members[0]._id);
+
+      setSplits(
+        members.map((member) => ({
+          user: member._id,
+          amount: "",
+          percentage: ""
+        }))
+      );
+    } else {
+      setPaidBy("");
+      setSplits([]);
+    }
+  }, [selectedGroup, groups]);
+
+  // --------------------------------------------------
+  // Group Change
+  // --------------------------------------------------
+
   const handleGroupChange = (e) => {
     const groupId = e.target.value;
 
     setSelectedGroup(groupId);
+
+    setSearchTerm("");
+    setFilterType("all");
+    setCurrentPage(1);
+
     fetchExpenses(groupId);
   };
 
+  // --------------------------------------------------
+  // Split Type Change
+  // --------------------------------------------------
+
   const handleSplitTypeChange = (e) => {
-    setSplitType(e.target.value);
+    const newSplitType = e.target.value;
+
+    setSplitType(newSplitType);
 
     setSplits(
       members.map((member) => ({
@@ -117,6 +192,10 @@ function Expenses() {
       }))
     );
   };
+
+  // --------------------------------------------------
+  // Split Value Change
+  // --------------------------------------------------
 
   const handleSplitChange = (userId, field, value) => {
     setSplits((previousSplits) =>
@@ -130,6 +209,10 @@ function Expenses() {
       )
     );
   };
+
+  // --------------------------------------------------
+  // Split Calculations
+  // --------------------------------------------------
 
   const totalExactAmount = splits.reduce(
     (sum, split) =>
@@ -147,6 +230,10 @@ function Expenses() {
     members.length > 0 && amount
       ? Number(amount) / members.length
       : 0;
+
+  // --------------------------------------------------
+  // Create Expense
+  // --------------------------------------------------
 
   const handleCreateExpense = async (e) => {
     e.preventDefault();
@@ -178,12 +265,14 @@ function Expenses() {
 
     let finalSplits = [];
 
+    // Equal Split
     if (splitType === "equal") {
       finalSplits = members.map((member) => ({
         user: member._id
       }));
     }
 
+    // Exact Split
     if (splitType === "exact") {
       if (
         Math.abs(
@@ -197,6 +286,7 @@ function Expenses() {
             2
           )}.`
         );
+
         return;
       }
 
@@ -206,6 +296,7 @@ function Expenses() {
       }));
     }
 
+    // Percentage Split
     if (splitType === "percentage") {
       if (
         Math.abs(totalPercentage - 100) >
@@ -216,6 +307,7 @@ function Expenses() {
             2
           )}%.`
         );
+
         return;
       }
 
@@ -236,10 +328,12 @@ function Expenses() {
         "http://localhost:5000/api/expenses",
         {
           method: "POST",
+
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`
           },
+
           body: JSON.stringify({
             group: selectedGroup,
             description: description.trim(),
@@ -268,6 +362,8 @@ function Expenses() {
           }))
         );
 
+        setCurrentPage(1);
+
         fetchExpenses(selectedGroup);
       } else {
         alert(
@@ -282,6 +378,10 @@ function Expenses() {
       setLoading(false);
     }
   };
+
+  // --------------------------------------------------
+  // Delete Expense
+  // --------------------------------------------------
 
   const handleDeleteExpense = async (expenseId) => {
     const confirmed = window.confirm(
@@ -301,6 +401,7 @@ function Expenses() {
         `http://localhost:5000/api/expenses/${expenseId}`,
         {
           method: "DELETE",
+
           headers: {
             Authorization: `Bearer ${token}`
           }
@@ -311,6 +412,7 @@ function Expenses() {
 
       if (response.ok) {
         alert("Expense deleted successfully!");
+
         fetchExpenses(selectedGroup);
       } else {
         alert(
@@ -325,6 +427,10 @@ function Expenses() {
       setDeletingExpenseId("");
     }
   };
+
+  // --------------------------------------------------
+  // Date Formatting
+  // --------------------------------------------------
 
   const formatDate = (date) => {
     if (!date) {
@@ -341,13 +447,23 @@ function Expenses() {
     );
   };
 
+  // --------------------------------------------------
+  // Get Member Name
+  // --------------------------------------------------
+
   const getMemberName = (userId) => {
     const member = members.find(
-      (item) => item._id === userId
+      (item) =>
+        item._id?.toString() ===
+        userId?.toString()
     );
 
     return member?.name || "Unknown";
   };
+
+  // --------------------------------------------------
+  // Expense Split Details
+  // --------------------------------------------------
 
   const getExpenseSplitDetails = (expense) => {
     if (!expense.splits) {
@@ -361,6 +477,7 @@ function Expenses() {
           split.user?._id || split.user
         );
 
+      // Percentage Split
       if (
         expense.splitType ===
         "percentage"
@@ -370,8 +487,8 @@ function Expenses() {
         );
 
         const calculatedAmount =
-          Number(expense.amount) *
-          percentage /
+          (Number(expense.amount) *
+            percentage) /
           100;
 
         return {
@@ -381,18 +498,20 @@ function Expenses() {
         };
       }
 
+      // Exact Split
       if (expense.splitType === "exact") {
+        const exactAmount = Number(
+          split.amount || 0
+        );
+
         return {
           name: memberName,
-          value: `₹${Number(
-            split.amount || 0
-          ).toFixed(2)}`,
-          amount: Number(
-            split.amount || 0
-          )
+          value: `₹${exactAmount.toFixed(2)}`,
+          amount: exactAmount
         };
       }
 
+      // Equal Split
       const share =
         Number(expense.amount) /
         (expense.splits.length || 1);
@@ -405,11 +524,121 @@ function Expenses() {
     });
   };
 
+  // --------------------------------------------------
+  // Search + Filter
+  // --------------------------------------------------
+
+  const filteredExpenses = expenses.filter(
+    (expense) => {
+      const search = searchTerm
+        .trim()
+        .toLowerCase();
+
+      const descriptionMatch =
+        expense.description
+          ?.toLowerCase()
+          .includes(search);
+
+      const paidByMatch =
+        expense.paidBy?.name
+          ?.toLowerCase()
+          .includes(search);
+
+      const searchMatch =
+        !search ||
+        descriptionMatch ||
+        paidByMatch;
+
+      const filterMatch =
+        filterType === "all" ||
+        expense.splitType === filterType;
+
+      return searchMatch && filterMatch;
+    }
+  );
+
+  // --------------------------------------------------
+  // Pagination
+  // --------------------------------------------------
+
+  const totalPages = Math.ceil(
+    filteredExpenses.length /
+      expensesPerPage
+  );
+
+  // Prevent invalid page after deleting/filtering
+  useEffect(() => {
+    if (totalPages === 0) {
+      setCurrentPage(1);
+      return;
+    }
+
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
+  const startIndex =
+    (currentPage - 1) *
+    expensesPerPage;
+
+  const paginatedExpenses =
+    filteredExpenses.slice(
+      startIndex,
+      startIndex + expensesPerPage
+    );
+
+  // --------------------------------------------------
+  // Search Change
+  // --------------------------------------------------
+
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // --------------------------------------------------
+  // Filter Change
+  // --------------------------------------------------
+
+  const handleFilterChange = (e) => {
+    setFilterType(e.target.value);
+    setCurrentPage(1);
+  };
+
+  // --------------------------------------------------
+  // Pagination
+  // --------------------------------------------------
+
+  const goToPage = (page) => {
+    if (
+      page < 1 ||
+      page > totalPages
+    ) {
+      return;
+    }
+
+    setCurrentPage(page);
+
+    window.scrollTo({
+      top: document.querySelector(
+        ".expenses-section"
+      )?.offsetTop - 100 || 0,
+      behavior: "smooth"
+    });
+  };
+
+  // --------------------------------------------------
+  // Render
+  // --------------------------------------------------
+
   return (
     <div>
       <Navbar />
 
       <main className="page-container">
+
+        {/* Page Header */}
 
         <div className="page-header">
           <h1>Expenses</h1>
@@ -689,6 +918,7 @@ function Expenses() {
                         ).toFixed(2)}
                       </p>
                     )}
+
                   </div>
                 )}
 
@@ -716,10 +946,10 @@ function Expenses() {
                         );
 
                       const calculatedAmount =
-                        Number(amount || 0) *
-                        Number(
-                          split.percentage || 0
-                        ) /
+                        (Number(amount || 0) *
+                          Number(
+                            split.percentage || 0
+                          )) /
                         100;
 
                       return (
@@ -738,6 +968,7 @@ function Expenses() {
                           </div>
 
                           <div className="percentage-input">
+
                             <input
                               type="number"
                               min="0"
@@ -762,6 +993,7 @@ function Expenses() {
                                 2
                               )}
                             </span>
+
                           </div>
                         </div>
                       );
@@ -797,6 +1029,7 @@ function Expenses() {
                         %
                       </p>
                     )}
+
                   </div>
                 )}
 
@@ -808,6 +1041,7 @@ function Expenses() {
                     ? "Adding Expense..."
                     : "Add Expense"}
                 </button>
+
               </form>
             </section>
 
@@ -816,176 +1050,338 @@ function Expenses() {
             <section className="expenses-section">
 
               <div className="section-title">
+
                 <h2>
                   Expense History
                 </h2>
 
                 <span>
+                  {filteredExpenses.length} of{" "}
                   {expenses.length} Expenses
                 </span>
+
               </div>
 
-              {expenses.length === 0 ? (
+              {/* Search + Filter */}
+
+              <div className="expense-search-filter">
+
+                <input
+                  type="text"
+                  placeholder="🔎 Search by description or payer..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+
+                <select
+                  value={filterType}
+                  onChange={handleFilterChange}
+                >
+                  <option value="all">
+                    All Split Types
+                  </option>
+
+                  <option value="equal">
+                    Equal Split
+                  </option>
+
+                  <option value="exact">
+                    Exact Amount
+                  </option>
+
+                  <option value="percentage">
+                    Percentage
+                  </option>
+                </select>
+
+              </div>
+
+              {/* Empty State */}
+
+              {filteredExpenses.length === 0 ? (
+
                 <div className="empty-state">
 
                   <h3>
-                    No expenses yet
+                    {expenses.length === 0
+                      ? "No expenses yet"
+                      : "No matching expenses"}
                   </h3>
 
                   <p>
-                    Add your first expense for
-                    this group.
+                    {expenses.length === 0
+                      ? "Add your first expense for this group."
+                      : "Try changing your search or filter."}
                   </p>
 
                 </div>
+
               ) : (
-                <div className="expenses-grid">
 
-                  {expenses.map((expense) => {
+                <>
 
-                    const splitDetails =
-                      getExpenseSplitDetails(
-                        expense
-                      );
+                  {/* Expense Cards */}
 
-                    return (
-                      <div
-                        className="expense-card"
-                        key={expense._id}
-                      >
+                  <div className="expenses-grid">
 
-                        {/* Header */}
+                    {paginatedExpenses.map(
+                      (expense) => {
 
-                        <div className="expense-card-header">
+                        const splitDetails =
+                          getExpenseSplitDetails(
+                            expense
+                          );
 
-                          <div>
-                            <h3>
-                              {
-                                expense.description
-                              }
-                            </h3>
+                        return (
+                          <div
+                            className="expense-card"
+                            key={expense._id}
+                          >
 
-                            <p>
-                              Paid by{" "}
-                              <strong>
-                                {
-                                  expense
-                                    .paidBy
-                                    ?.name ||
-                                  "Unknown"
-                                }
-                              </strong>
-                            </p>
-                          </div>
+                            {/* Header */}
 
-                          <div>
-                            <strong>
-                              ₹
-                              {Number(
-                                expense.amount
-                              ).toFixed(2)}
-                            </strong>
+                            <div className="expense-card-header">
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                handleDeleteExpense(
-                                  expense._id
-                                )
-                              }
-                              disabled={
-                                deletingExpenseId ===
-                                expense._id
-                              }
-                            >
-                              {deletingExpenseId ===
-                              expense._id
-                                ? "Deleting..."
-                                : "🗑️ Delete"}
-                            </button>
-                          </div>
+                              <div>
 
-                        </div>
+                                <h3>
+                                  {
+                                    expense.description
+                                  }
+                                </h3>
 
-                        {/* Expense Meta */}
-
-                        <div className="expense-details">
-
-                          <span>
-                            🔀 Split:{" "}
-                            <strong>
-                              {expense.splitType ===
-                              "equal"
-                                ? "Equal"
-                                : expense.splitType ===
-                                  "exact"
-                                ? "Exact"
-                                : "Percentage"}
-                            </strong>
-                          </span>
-
-                          <span>
-                            📅{" "}
-                            {formatDate(
-                              expense.createdAt
-                            )}
-                          </span>
-
-                        </div>
-
-                        {/* Individual Shares */}
-
-                        {splitDetails.length >
-                          0 && (
-                          <div className="expense-splits">
-
-                            <h4>
-                              Individual Shares
-                            </h4>
-
-                            {splitDetails.map(
-                              (
-                                split,
-                                index
-                              ) => (
-                                <div
-                                  className="expense-split-row"
-                                  key={`${expense._id}-${index}`}
-                                >
-                                  <span>
-                                    {
-                                      split.name
-                                    }
-                                  </span>
-
+                                <p>
+                                  Paid by{" "}
                                   <strong>
-                                    {split.value}
-
-                                    {expense.splitType ===
-                                      "percentage" && (
-                                      <small>
-                                        {" "}
-                                        (
-                                        ₹
-                                        {split.amount.toFixed(
-                                          2
-                                        )}
-                                        )
-                                      </small>
-                                    )}
+                                    {
+                                      expense
+                                        .paidBy
+                                        ?.name ||
+                                      "Unknown"
+                                    }
                                   </strong>
-                                </div>
-                              )
+                                </p>
+
+                              </div>
+
+                              <div>
+
+                                <strong>
+                                  ₹
+                                  {Number(
+                                    expense.amount
+                                  ).toFixed(2)}
+                                </strong>
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    handleDeleteExpense(
+                                      expense._id
+                                    )
+                                  }
+                                  disabled={
+                                    deletingExpenseId ===
+                                    expense._id
+                                  }
+                                >
+                                  {deletingExpenseId ===
+                                  expense._id
+                                    ? "Deleting..."
+                                    : "🗑️ Delete"}
+                                </button>
+
+                              </div>
+
+                            </div>
+
+                            {/* Expense Meta */}
+
+                            <div className="expense-details">
+
+                              <span>
+                                🔀 Split:{" "}
+                                <strong>
+                                  {expense.splitType ===
+                                  "equal"
+                                    ? "Equal"
+                                    : expense.splitType ===
+                                      "exact"
+                                    ? "Exact"
+                                    : "Percentage"}
+                                </strong>
+                              </span>
+
+                              <span>
+                                📅{" "}
+                                {formatDate(
+                                  expense.createdAt
+                                )}
+                              </span>
+
+                            </div>
+
+                            {/* Individual Shares */}
+
+                            {splitDetails.length >
+                              0 && (
+
+                              <div className="expense-splits">
+
+                                <h4>
+                                  Individual Shares
+                                </h4>
+
+                                {splitDetails.map(
+                                  (
+                                    split,
+                                    index
+                                  ) => (
+
+                                    <div
+                                      className="expense-split-row"
+                                      key={`${expense._id}-${index}`}
+                                    >
+
+                                      <span>
+                                        {
+                                          split.name
+                                        }
+                                      </span>
+
+                                      <strong>
+                                        {split.value}
+
+                                        {expense.splitType ===
+                                          "percentage" && (
+                                          <small>
+                                            {" "}
+                                            (
+                                            ₹
+                                            {split.amount.toFixed(
+                                              2
+                                            )}
+                                            )
+                                          </small>
+                                        )}
+                                      </strong>
+
+                                    </div>
+
+                                  )
+                                )}
+
+                              </div>
+
                             )}
 
                           </div>
+                        );
+                      }
+                    )}
+
+                  </div>
+
+                  {/* Pagination */}
+
+                  {totalPages > 1 && (
+
+                    <div className="expense-pagination">
+
+                      <button
+                        type="button"
+                        disabled={
+                          currentPage === 1
+                        }
+                        onClick={() =>
+                          goToPage(
+                            currentPage - 1
+                          )
+                        }
+                      >
+                        ← Previous
+                      </button>
+
+                      <div className="page-numbers">
+
+                        {Array.from(
+                          {
+                            length: totalPages
+                          },
+                          (_, index) => {
+
+                            const page =
+                              index + 1;
+
+                            return (
+                              <button
+                                type="button"
+                                key={page}
+                                className={
+                                  currentPage ===
+                                  page
+                                    ? "active"
+                                    : ""
+                                }
+                                onClick={() =>
+                                  goToPage(page)
+                                }
+                              >
+                                {page}
+                              </button>
+                            );
+                          }
                         )}
 
                       </div>
-                    );
-                  })}
 
-                </div>
+                      <button
+                        type="button"
+                        disabled={
+                          currentPage ===
+                          totalPages
+                        }
+                        onClick={() =>
+                          goToPage(
+                            currentPage + 1
+                          )
+                        }
+                      >
+                        Next →
+                      </button>
+
+                    </div>
+
+                  )}
+
+                  {/* Pagination Information */}
+
+                  {totalPages > 1 && (
+
+                    <div className="pagination-info">
+
+                      Showing{" "}
+                      {startIndex + 1}-
+                      {Math.min(
+                        startIndex +
+                          expensesPerPage,
+                        filteredExpenses.length
+                      )}{" "}
+                      of{" "}
+                      {filteredExpenses.length}{" "}
+                      expenses
+
+                      <br />
+
+                      Page {currentPage} of{" "}
+                      {totalPages}
+
+                    </div>
+
+                  )}
+
+                </>
+
               )}
 
             </section>

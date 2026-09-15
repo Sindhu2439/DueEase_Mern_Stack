@@ -3515,3 +3515,273 @@ nav button:hover {
   }
 
 }
+/* ========================================
+   Expense Search & Filter
+======================================== */
+
+.expense-search-filter {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+}
+
+.expense-search-filter input {
+  flex: 1;
+  min-width: 240px;
+  padding: 13px 16px;
+  border: 1px solid #d9dce3;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+  background: #ffffff;
+}
+
+.expense-search-filter input:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+.expense-search-filter select {
+  min-width: 190px;
+  padding: 13px 16px;
+  border: 1px solid #d9dce3;
+  border-radius: 10px;
+  font-size: 14px;
+  background: #ffffff;
+  cursor: pointer;
+  outline: none;
+}
+
+.expense-search-filter select:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.1);
+}
+
+@media (max-width: 600px) {
+  .expense-search-filter {
+    flex-direction: column;
+  }
+
+  .expense-search-filter input,
+  .expense-search-filter select {
+    width: 100%;
+    min-width: 0;
+  }
+}
+/* =========================================
+   Expense Search + Filter
+========================================= */
+
+.expense-search-filter {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 14px;
+  margin: 20px 0 24px;
+}
+
+.expense-search-filter input,
+.expense-search-filter select {
+  width: 100%;
+  padding: 13px 15px;
+  border: 1px solid #dbe2ea;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1f2937;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s ease;
+  box-sizing: border-box;
+}
+
+.expense-search-filter input::placeholder {
+  color: #94a3b8;
+}
+
+.expense-search-filter input:focus,
+.expense-search-filter select:focus {
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+
+
+/* =========================================
+   Expense Pagination
+========================================= */
+
+.expense-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 30px 0 10px;
+  flex-wrap: wrap;
+}
+
+.expense-pagination > button {
+  border: 1px solid #dbe2ea;
+  background: #ffffff;
+  color: #1f2937;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.expense-pagination > button:hover:not(:disabled) {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+
+.expense-pagination > button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+
+/* Page Number Buttons */
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-numbers button {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid #dbe2ea;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.page-numbers button:hover {
+  background: #f1f5f9;
+}
+
+.page-numbers button.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #ffffff;
+}
+
+
+/* Pagination Information */
+
+.pagination-info {
+  text-align: center;
+  color: #64748b;
+  font-size: 13px;
+  margin-bottom: 30px;
+}
+
+
+/* =========================================
+   Responsive Design
+========================================= */
+
+@media (max-width: 700px) {
+  .expense-search-filter {
+    grid-template-columns: 1fr;
+  }
+
+  .expense-pagination {
+    gap: 10px;
+  }
+
+  .expense-pagination > button {
+    padding: 9px 12px;
+  }
+
+  .page-numbers {
+    gap: 5px;
+  }
+
+  .page-numbers button {
+    min-width: 34px;
+    height: 34px;
+  }
+}
+
+/* ==================================================
+   Expense Pagination
+   ================================================== */
+
+.expense-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 28px;
+  flex-wrap: wrap;
+}
+
+.expense-pagination > button,
+.page-numbers button {
+  border: 1px solid #dbe2ea;
+  background: #ffffff;
+  color: #374151;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.expense-pagination > button:hover:not(:disabled),
+.page-numbers button:hover {
+  border-color: #4f46e5;
+  color: #4f46e5;
+  transform: translateY(-1px);
+}
+
+.expense-pagination button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.page-numbers {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.page-numbers button.active {
+  background: #4f46e5;
+  border-color: #4f46e5;
+  color: #ffffff;
+}
+
+.pagination-info {
+  text-align: center;
+  margin-top: 12px;
+  color: #6b7280;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+@media (max-width: 600px) {
+  .expense-pagination {
+    gap: 8px;
+  }
+
+  .expense-pagination > button,
+  .page-numbers button {
+    padding: 8px 11px;
+    font-size: 13px;
+  }
+
+  .page-numbers {
+    gap: 5px;
+  }
+}
