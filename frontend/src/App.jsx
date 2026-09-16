@@ -8,6 +8,7 @@ import Expenses from "./pages/Expenses";
 import Balances from "./pages/Balances";
 import Settlements from "./pages/Settlements";
 import Analytics from "./pages/Analytics";
+import Profile from "./pages/Profile";
 
 import ProtectedRoute from "./ProtectedRoute";
 
@@ -16,9 +17,15 @@ function App() {
     <BrowserRouter>
       <Routes>
 
-        <Route path="/" element={<Login />} />
+        <Route
+          path="/"
+          element={<Login />}
+        />
 
-        <Route path="/register" element={<Register />} />
+        <Route
+          path="/register"
+          element={<Register />}
+        />
 
         <Route
           path="/dashboard"
@@ -70,6 +77,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Analytics />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
             </ProtectedRoute>
           }
         />

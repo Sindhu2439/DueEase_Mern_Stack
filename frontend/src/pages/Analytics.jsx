@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "../Navbar";
+import socket from "../socket";
 
 import {
   BarChart,
@@ -24,39 +25,35 @@ function Analytics() {
   const [loading, setLoading] = useState(true);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
-  useEffect(() => {
-    const fetchGroups = async () => {
-      try {
-        const token = localStorage.getItem("token");
+  const fetchGroups = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-        const response = await fetch(
-          "http://localhost:5000/api/groups",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`
-            }
+      const response = await fetch(
+        "http://localhost:5000/api/groups",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
           }
-        );
-
-        const data = await response.json();
-
-        if (response.ok) {
-          setGroups(data.groups || data || []);
-        } else {
-          alert(
-            data.message || "Unable to load groups"
-          );
         }
-      } catch (error) {
-        console.error(error);
-        alert("Unable to connect to server");
-      } finally {
-        setLoading(false);
-      }
-    };
+      );
 
-    fetchGroups();
-  }, []);
+      const data = await response.json();
+
+      if (response.ok) {
+        setGroups(data.groups || data || []);
+      } else {
+        alert(
+          data.message || "Unable to load groups"
+        );
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unable to connect to server");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchAnalytics = async (groupId) => {
     if (!groupId) {
@@ -95,6 +92,46 @@ function Analytics() {
       setAnalyticsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchGroups();
+
+    socket.connect();
+
+    const handleExpenseAdded = (data) => {
+      if (
+        data?.expense?.group &&
+        data.expense.group.toString() === selectedGroup
+      ) {
+        fetchAnalytics(selectedGroup);
+      }
+    };
+
+    const handleExpenseDeleted = () => {
+      if (selectedGroup) {
+        fetchAnalytics(selectedGroup);
+      }
+    };
+
+    const handleGroupUpdated = () => {
+      fetchGroups();
+
+      if (selectedGroup) {
+        fetchAnalytics(selectedGroup);
+      }
+    };
+
+    socket.on("expenseAdded", handleExpenseAdded);
+    socket.on("expenseDeleted", handleExpenseDeleted);
+    socket.on("groupUpdated", handleGroupUpdated);
+
+    return () => {
+      socket.off("expenseAdded", handleExpenseAdded);
+      socket.off("expenseDeleted", handleExpenseDeleted);
+      socket.off("groupUpdated", handleGroupUpdated);
+      socket.disconnect();
+    };
+  }, [selectedGroup]);
 
   const handleGroupChange = (e) => {
     const groupId = e.target.value;

@@ -3785,3 +3785,99 @@ nav button:hover {
     gap: 5px;
   }
 }
+
+/* ==================== MOBILE RESPONSIVE ==================== */
+
+@media (max-width: 768px) {
+
+    .container {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 20px 14px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .card {
+        width: 100%;
+        box-sizing: border-box;
+        overflow-x: auto;
+    }
+
+    h1 {
+        font-size: 28px;
+    }
+
+    h2 {
+        font-size: 22px;
+    }
+
+    h3 {
+        font-size: 17px;
+    }
+
+    select,
+    input,
+    textarea {
+        width: 100%;
+        box-sizing: border-box;
+    }
+
+    button {
+        max-width: 100%;
+    }
+
+    table {
+        min-width: 600px;
+    }
+
+    /* Settlement cards */
+
+    .settlement-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    /* Analytics */
+
+    .recharts-responsive-container {
+        min-height: 280px;
+    }
+
+}
+
+/* ==================== SMALL PHONES ==================== */
+
+@media (max-width: 480px) {
+
+    .container {
+        padding: 16px 10px;
+    }
+
+    .card {
+        padding: 16px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    h2 {
+        font-size: 20px;
+    }
+
+    .expense-pagination {
+        gap: 5px;
+    }
+
+    .expense-pagination > button,
+    .page-numbers button {
+        padding: 7px 9px;
+        font-size: 12px;
+    }
+
+}

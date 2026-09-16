@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "../Navbar";
+import socket from "../socket";
 
 function Balances() {
   const [groups, setGroups] = useState([]);
@@ -32,10 +33,6 @@ function Balances() {
       alert("Unable to connect to server");
     }
   };
-
-  useEffect(() => {
-    fetchGroups();
-  }, []);
 
   const fetchBalances = async (groupId) => {
     if (!groupId) {
@@ -73,6 +70,46 @@ function Balances() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchGroups();
+
+    socket.connect();
+
+    const handleExpenseAdded = (data) => {
+      if (
+        data?.expense?.group &&
+        data.expense.group.toString() === selectedGroup
+      ) {
+        fetchBalances(selectedGroup);
+      }
+    };
+
+    const handleExpenseDeleted = () => {
+      if (selectedGroup) {
+        fetchBalances(selectedGroup);
+      }
+    };
+
+    const handleGroupUpdated = () => {
+      fetchGroups();
+
+      if (selectedGroup) {
+        fetchBalances(selectedGroup);
+      }
+    };
+
+    socket.on("expenseAdded", handleExpenseAdded);
+    socket.on("expenseDeleted", handleExpenseDeleted);
+    socket.on("groupUpdated", handleGroupUpdated);
+
+    return () => {
+      socket.off("expenseAdded", handleExpenseAdded);
+      socket.off("expenseDeleted", handleExpenseDeleted);
+      socket.off("groupUpdated", handleGroupUpdated);
+      socket.disconnect();
+    };
+  }, [selectedGroup]);
 
   const handleGroupChange = (e) => {
     const groupId = e.target.value;

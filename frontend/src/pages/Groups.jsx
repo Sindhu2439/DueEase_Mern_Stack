@@ -28,7 +28,7 @@ function Groups() {
       const data = await response.json();
 
       if (response.ok) {
-        setGroups(data.groups || data);
+        setGroups(data.groups || data || []);
       } else {
         alert(data.message || "Unable to load groups");
       }
@@ -43,16 +43,21 @@ function Groups() {
   useEffect(() => {
     fetchGroups();
 
-    // Connect to Socket.IO
     socket.connect();
 
+    const handleGroupUpdated = () => {
+      fetchGroups();
+    };
+
+    socket.on("groupUpdated", handleGroupUpdated);
+
     return () => {
+      socket.off("groupUpdated", handleGroupUpdated);
       socket.disconnect();
     };
   }, []);
 
   useEffect(() => {
-    // Join all existing groups
     if (groups.length > 0) {
       groups.forEach((group) => {
         socket.emit("joinGroup", group._id);
@@ -167,8 +172,6 @@ function Groups() {
 
       <main className="page-container">
 
-        {/* PAGE HEADER */}
-
         <div className="page-header">
           <span className="dashboard-badge">
             Group Management
@@ -182,8 +185,6 @@ function Groups() {
           </p>
         </div>
 
-
-        {/* GROUP SUMMARY */}
 
         <section className="dashboard-stats">
 
@@ -234,11 +235,7 @@ function Groups() {
         </section>
 
 
-        {/* ACTION CARDS */}
-
         <div className="form-grid">
-
-          {/* CREATE GROUP */}
 
           <section className="form-card">
 
@@ -281,8 +278,6 @@ function Groups() {
 
           </section>
 
-
-          {/* ADD MEMBER */}
 
           <section className="form-card">
 
@@ -353,8 +348,6 @@ function Groups() {
         </div>
 
 
-        {/* GROUP LIST */}
-
         <section className="groups-section">
 
           <div className="section-title">
@@ -423,8 +416,6 @@ function Groups() {
                   key={group._id}
                 >
 
-                  {/* CARD HEADER */}
-
                   <div className="group-card-header">
 
                     <div className="group-title-area">
@@ -453,8 +444,6 @@ function Groups() {
                   </div>
 
 
-                  {/* MEMBER COUNT */}
-
                   <div className="group-member-summary">
 
                     <span>
@@ -467,8 +456,6 @@ function Groups() {
 
                   </div>
 
-
-                  {/* MEMBERS */}
 
                   <div className="group-members-container">
 
@@ -535,8 +522,6 @@ function Groups() {
 
         </section>
 
-
-        {/* RECRUITER HIGHLIGHT */}
 
         <section className="dashboard-highlight">
 

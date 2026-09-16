@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../Navbar";
+import socket from "../socket";
 
 function Dashboard() {
   const [groups, setGroups] = useState([]);
@@ -35,12 +36,6 @@ function Dashboard() {
       let totalExpenses = 0;
       let totalAmount = 0;
 
-      /*
-        Fetch expenses for every group.
-        This allows the dashboard statistics
-        to reflect real database data.
-      */
-
       for (const group of userGroups) {
         try {
           const expenseResponse = await fetch(
@@ -52,18 +47,15 @@ function Dashboard() {
             }
           );
 
-          const expenseData =
-            await expenseResponse.json();
+          const expenseData = await expenseResponse.json();
 
           if (expenseResponse.ok) {
-            const groupExpenses =
-              expenseData.expenses || [];
+            const groupExpenses = expenseData.expenses || [];
 
             totalExpenses += groupExpenses.length;
 
             groupExpenses.forEach((expense) => {
-              totalAmount +=
-                Number(expense.amount) || 0;
+              totalAmount += Number(expense.amount) || 0;
             });
           }
         } catch (error) {
@@ -76,12 +68,8 @@ function Dashboard() {
 
       setExpenseCount(totalExpenses);
       setTotalSpent(totalAmount);
-
     } catch (error) {
-      console.error(
-        "Dashboard error:",
-        error
-      );
+      console.error("Dashboard error:", error);
     } finally {
       setLoading(false);
     }
@@ -89,13 +77,26 @@ function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
 
-  /*
-    A member may belong to multiple groups.
-    Using a Set prevents counting the same
-    person multiple times.
-  */
+    socket.connect();
+
+    const handleExpenseAdded = () => {
+      fetchDashboardData();
+    };
+
+    const handleExpenseDeleted = () => {
+      fetchDashboardData();
+    };
+
+    socket.on("expenseAdded", handleExpenseAdded);
+    socket.on("expenseDeleted", handleExpenseDeleted);
+
+    return () => {
+      socket.off("expenseAdded", handleExpenseAdded);
+      socket.off("expenseDeleted", handleExpenseDeleted);
+      socket.disconnect();
+    };
+  }, []);
 
   const uniqueMemberIds = new Set();
 
@@ -105,8 +106,7 @@ function Dashboard() {
     });
   });
 
-  const totalMembers =
-    uniqueMemberIds.size;
+  const totalMembers = uniqueMemberIds.size;
 
   return (
     <div>
@@ -114,12 +114,7 @@ function Dashboard() {
 
       <main className="dashboard-container">
 
-        {/* =====================================
-            HERO
-        ===================================== */}
-
         <section className="dashboard-hero">
-
           <div className="dashboard-hero-content">
 
             <span className="dashboard-badge">
@@ -159,89 +154,63 @@ function Dashboard() {
           <div className="dashboard-hero-icon">
             💸
           </div>
-
         </section>
 
-
-        {/* =====================================
-            LIVE STATISTICS
-        ===================================== */}
 
         <section className="dashboard-stats">
 
           <div className="stat-card">
-
             <div className="stat-icon">
               👥
             </div>
 
             <div>
-              <span>
-                Total Groups
-              </span>
+              <span>Total Groups</span>
 
               <h2>
-                {loading
-                  ? "..."
-                  : groups.length}
+                {loading ? "..." : groups.length}
               </h2>
             </div>
-
           </div>
 
 
           <div className="stat-card">
-
             <div className="stat-icon">
               🧑‍🤝‍🧑
             </div>
 
             <div>
-              <span>
-                Unique Members
-              </span>
+              <span>Unique Members</span>
 
               <h2>
-                {loading
-                  ? "..."
-                  : totalMembers}
+                {loading ? "..." : totalMembers}
               </h2>
             </div>
-
           </div>
 
 
           <div className="stat-card">
-
             <div className="stat-icon">
               🧾
             </div>
 
             <div>
-              <span>
-                Total Expenses
-              </span>
+              <span>Total Expenses</span>
 
               <h2>
-                {loading
-                  ? "..."
-                  : expenseCount}
+                {loading ? "..." : expenseCount}
               </h2>
             </div>
-
           </div>
 
 
           <div className="stat-card">
-
             <div className="stat-icon">
               💰
             </div>
 
             <div>
-              <span>
-                Total Spending
-              </span>
+              <span>Total Spending</span>
 
               <h2>
                 {loading
@@ -249,31 +218,22 @@ function Dashboard() {
                   : `₹${totalSpent.toFixed(2)}`}
               </h2>
             </div>
-
           </div>
 
         </section>
 
 
-        {/* =====================================
-            MAIN FEATURES
-        ===================================== */}
-
         <section className="dashboard-section">
 
           <div className="section-title">
-
             <div>
-              <h2>
-                Manage Your Expenses
-              </h2>
+              <h2>Manage Your Expenses</h2>
 
               <p>
                 Everything you need to manage shared
                 expenses in one place.
               </p>
             </div>
-
           </div>
 
 
@@ -283,14 +243,11 @@ function Dashboard() {
               to="/groups"
               className="dashboard-feature-card"
             >
-
               <div className="feature-icon">
                 👥
               </div>
 
-              <h3>
-                Groups
-              </h3>
+              <h3>Groups</h3>
 
               <p>
                 Create groups for roommates, trips,
@@ -300,7 +257,6 @@ function Dashboard() {
               <span>
                 Manage Groups →
               </span>
-
             </Link>
 
 
@@ -308,14 +264,11 @@ function Dashboard() {
               to="/expenses"
               className="dashboard-feature-card"
             >
-
               <div className="feature-icon">
                 💰
               </div>
 
-              <h3>
-                Expenses
-              </h3>
+              <h3>Expenses</h3>
 
               <p>
                 Record expenses and split them equally,
@@ -325,7 +278,6 @@ function Dashboard() {
               <span>
                 Manage Expenses →
               </span>
-
             </Link>
 
 
@@ -333,14 +285,11 @@ function Dashboard() {
               to="/balances"
               className="dashboard-feature-card"
             >
-
               <div className="feature-icon">
                 📊
               </div>
 
-              <h3>
-                Balances
-              </h3>
+              <h3>Balances</h3>
 
               <p>
                 Quickly see who owes money and who
@@ -350,7 +299,6 @@ function Dashboard() {
               <span>
                 View Balances →
               </span>
-
             </Link>
 
 
@@ -358,14 +306,11 @@ function Dashboard() {
               to="/settlements"
               className="dashboard-feature-card"
             >
-
               <div className="feature-icon">
                 🤝
               </div>
 
-              <h3>
-                Smart Settlements
-              </h3>
+              <h3>Smart Settlements</h3>
 
               <p>
                 Reduce unnecessary transactions using
@@ -375,7 +320,6 @@ function Dashboard() {
               <span>
                 View Settlements →
               </span>
-
             </Link>
 
 
@@ -383,14 +327,11 @@ function Dashboard() {
               to="/analytics"
               className="dashboard-feature-card"
             >
-
               <div className="feature-icon">
                 📈
               </div>
 
-              <h3>
-                Analytics
-              </h3>
+              <h3>Analytics</h3>
 
               <p>
                 Understand spending patterns with
@@ -400,7 +341,6 @@ function Dashboard() {
               <span>
                 View Analytics →
               </span>
-
             </Link>
 
 
@@ -410,9 +350,7 @@ function Dashboard() {
                 🔐
               </div>
 
-              <h3>
-                Secure Access
-              </h3>
+              <h3>Secure Access</h3>
 
               <p>
                 JWT authentication and protected
@@ -431,10 +369,6 @@ function Dashboard() {
         </section>
 
 
-        {/* =====================================
-            HOW DUEEASE WORKS
-        ===================================== */}
-
         <section className="dashboard-info">
 
           <h2>
@@ -450,7 +384,6 @@ function Dashboard() {
           <div className="dashboard-steps">
 
             <div className="dashboard-step">
-
               <div className="step-number">
                 1
               </div>
@@ -465,12 +398,10 @@ function Dashboard() {
                   members to your group.
                 </p>
               </div>
-
             </div>
 
 
             <div className="dashboard-step">
-
               <div className="step-number">
                 2
               </div>
@@ -485,12 +416,10 @@ function Dashboard() {
                   how the cost should be divided.
                 </p>
               </div>
-
             </div>
 
 
             <div className="dashboard-step">
-
               <div className="step-number">
                 3
               </div>
@@ -505,12 +434,10 @@ function Dashboard() {
                   needs to receive money.
                 </p>
               </div>
-
             </div>
 
 
             <div className="dashboard-step">
-
               <div className="step-number">
                 4
               </div>
@@ -525,17 +452,12 @@ function Dashboard() {
                   the number of payments required.
                 </p>
               </div>
-
             </div>
 
           </div>
 
         </section>
 
-
-        {/* =====================================
-            RECRUITER HIGHLIGHT
-        ===================================== */}
 
         <section className="dashboard-highlight">
 

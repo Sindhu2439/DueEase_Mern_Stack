@@ -19,6 +19,7 @@ function Navbar() {
         <Link to="/balances">Balances</Link>{" "}
         <Link to="/settlements">Settlements</Link>{" "}
         <Link to="/analytics">Analytics</Link>{" "}
+        <Link to="/profile">Profile</Link>{" "}
 
         <button onClick={handleLogout}>
           Logout
