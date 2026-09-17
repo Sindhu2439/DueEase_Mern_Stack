@@ -1281,22 +1281,26 @@ nav button:hover {
 
 
 /* ================================
+/* ================================
    RESPONSIVE
 ================================ */
 
 @media (max-width: 1000px) {
 
-  nav {
-    padding: 15px 4%;
-
-    flex-direction: column;
-
-    align-items: flex-start;
+  /* NAVBAR */
+  .dueease-navbar {
+    padding: 0 4% !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
   }
 
-  nav div {
-    gap: 12px;
+  .dueease-desktop-menu {
+    gap: 12px !important;
   }
+
+
+  /* DASHBOARD */
 
   .dashboard-stats {
     grid-template-columns: repeat(2, 1fr);
@@ -1328,20 +1332,49 @@ nav button:hover {
 }
 
 
-@media (max-width: 700px) {
+/* =================================
+   TABLET / MOBILE
+================================= */
+
+@media (max-width: 768px) {
+
+  /* NAVBAR */
+
+  .dueease-navbar {
+    min-height: 65px !important;
+    height: 65px !important;
+
+    padding: 0 16px !important;
+
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .dueease-desktop-menu {
+    display: none !important;
+  }
+
+  .dueease-hamburger {
+    display: flex !important;
+  }
+
+
+  /* GENERAL */
 
   .page-container,
   .dashboard-container {
     width: 94%;
-
     padding-top: 25px;
   }
+
+
+  /* DASHBOARD */
 
   .dashboard-hero {
     padding: 30px 25px;
 
     flex-direction: column;
-
     align-items: flex-start;
   }
 
@@ -1372,25 +1405,52 @@ nav button:hover {
 
   .dashboard-highlight {
     flex-direction: column;
-
     align-items: flex-start;
   }
+
+
+  /* FORMS */
 
   .form-grid {
     grid-template-columns: 1fr;
   }
 
+
+  /* GROUPS */
+
   .groups-grid {
     grid-template-columns: 1fr;
   }
+
+
+  /* BALANCES */
 
   .balance-grid {
     grid-template-columns: 1fr;
   }
 
+
+  /* ANALYTICS */
+
   .analytics-grid {
     grid-template-columns: 1fr;
   }
+
+  .analytics-summary {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .analytics-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .analytics-selector select {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+
+  /* SETTLEMENTS */
 
   .settlement-summary {
     grid-template-columns: 1fr;
@@ -1398,13 +1458,11 @@ nav button:hover {
 
   .settlement-card {
     flex-direction: column;
-
     align-items: flex-start;
   }
 
   .settlement-arrow {
     transform: rotate(90deg);
-
     align-self: center;
   }
 
@@ -1412,19 +1470,18 @@ nav button:hover {
     text-align: left;
   }
 
-  nav {
-    padding: 15px 4%;
-  }
 
-  nav div {
-    width: 100%;
-  }
+  /* PAGE HEADER */
 
   .page-header h1 {
     font-size: 28px;
   }
 }
 
+
+/* =================================
+   SMALL PHONES
+================================= */
 
 @media (max-width: 500px) {
 
@@ -1434,136 +1491,34 @@ nav button:hover {
 
   .auth-card {
     padding: 30px 22px;
-
     border-radius: 18px;
   }
 
   .auth-header h1 {
     font-size: 24px;
   }
-}
-/* =========================================
-   ANALYTICS PAGE - POLISHED DESIGN
-========================================= */
-
-.analytics-selector {
-  padding: 25px;
-  margin-bottom: 25px;
-
-  display: grid;
-  grid-template-columns: 1fr 260px;
-
-  column-gap: 30px;
-  row-gap: 5px;
-
-  align-items: center;
-}
-
-.analytics-selector h2 {
-  color: #111827;
-  font-size: 20px;
-}
-
-.analytics-selector p {
-  color: #6b7280;
-  font-size: 13px;
-}
-
-.analytics-selector select {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-
-  width: 100%;
-
-  padding: 12px 14px;
-
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-
-  background: white;
-
-  font-size: 14px;
-
-  outline: none;
-}
-
-.analytics-selector select:focus {
-  border-color: #6366f1;
-
-  box-shadow: 0 0 0 3px #eef2ff;
-}
 
 
-/* =========================================
-   ANALYTICS SUMMARY
-========================================= */
+  /* ANALYTICS */
 
-.analytics-summary {
-  display: grid;
+  .analytics-summary {
+    grid-template-columns: 1fr;
+  }
 
-  grid-template-columns: repeat(4, 1fr);
 
-  gap: 18px;
+  /* NAVBAR */
 
-  margin-bottom: 25px;
-}
+  .dueease-navbar {
+    padding: 0 12px !important;
+  }
 
-.analytics-stat-card {
-  background: white;
+  .dueease-logo {
+    font-size: 21px !important;
+  }
 
-  border: 1px solid #e5e7eb;
-
-  border-radius: 18px;
-
-  padding: 22px;
-
-  display: flex;
-  align-items: center;
-
-  gap: 15px;
-
-  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.04);
-
-  transition: 0.2s;
-}
-
-.analytics-stat-card:hover {
-  transform: translateY(-3px);
-
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.07);
-}
-
-.analytics-stat-icon {
-  width: 50px;
-  height: 50px;
-
-  border-radius: 13px;
-
-  background: #eef2ff;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 23px;
-
-  flex-shrink: 0;
-}
-
-.analytics-stat-card p {
-  color: #6b7280;
-
-  font-size: 12px;
-
-  margin-bottom: 3px;
-}
-
-.analytics-stat-card h2 {
-  color: #111827;
-
-  font-size: 22px;
-
-  line-height: 1.2;
+  .dueease-hamburger {
+    right: 8px !important;
+  }
 }
 
 
@@ -3880,4 +3835,283 @@ nav button:hover {
         font-size: 12px;
     }
 
+}
+/* MOBILE NAVBAR */
+
+.mobile-menu {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.mobile-menu-open {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+@media (max-width: 768px) {
+
+    .mobile-menu-button {
+        display: block !important;
+        position: absolute !important;
+        right: 15px !important;
+        top: 50% !important;
+        transform: translateY(-50%) !important;
+
+        color: black !important;
+        background: white !important;
+        border: 1px solid #ccc !important;
+        border-radius: 6px !important;
+
+        width: 45px !important;
+        height: 42px !important;
+
+        z-index: 99999 !important;
+    }
+
+    .mobile-menu {
+        display: none !important;
+    }
+
+    .mobile-menu-open {
+        display: flex !important;
+        position: absolute !important;
+
+        top: 70px !important;
+        left: 0 !important;
+        right: 0 !important;
+
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 0 !important;
+
+        background: white !important;
+        padding: 10px 20px !important;
+
+        z-index: 99998 !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+
+    .mobile-menu-open a {
+        padding: 12px 5px !important;
+    }
+
+    .mobile-menu-open button {
+        margin-top: 8px !important;
+        padding: 10px !important;
+    }
+}
+/* ==================================================
+   DUEEASE NAVBAR - FINAL
+================================================== */
+
+.dueease-navbar {
+  position: relative !important;
+  min-height: 70px !important;
+  padding: 0 7% !important;
+
+  background: #111827 !important;
+  color: white !important;
+
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+
+  flex-direction: row !important;
+}
+
+.dueease-logo {
+  margin: 0 !important;
+  color: white !important;
+  font-size: 24px !important;
+  white-space: nowrap !important;
+}
+
+.dueease-desktop-menu {
+  display: flex !important;
+  align-items: center !important;
+  gap: 20px !important;
+  flex-wrap: nowrap !important;
+}
+
+.dueease-desktop-menu a {
+  color: #d1d5db !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  text-decoration: none !important;
+}
+
+.dueease-desktop-menu a:hover {
+  color: white !important;
+}
+
+.dueease-desktop-menu button {
+  border: none !important;
+  background: #ef4444 !important;
+  color: white !important;
+
+  padding: 9px 16px !important;
+  border-radius: 8px !important;
+
+  font-weight: 600 !important;
+  cursor: pointer !important;
+}
+
+.dueease-hamburger {
+  display: none !important;
+}
+
+
+/* ==================================================
+   MOBILE
+================================================== */
+
+@media (max-width: 768px) {
+
+  .dueease-navbar {
+    min-height: 65px !important;
+    height: 65px !important;
+
+    padding: 0 16px !important;
+
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .dueease-logo {
+    font-size: 22px !important;
+  }
+
+  .dueease-desktop-menu {
+    display: none !important;
+  }
+
+  .dueease-hamburger {
+    display: flex !important;
+
+    width: 44px !important;
+    height: 44px !important;
+
+    padding: 0 !important;
+    margin: 0 !important;
+
+    border: none !important;
+    border-radius: 8px !important;
+
+    background: transparent !important;
+
+    align-items: center !important;
+    justify-content: center !important;
+    flex-direction: column !important;
+
+    gap: 5px !important;
+
+    cursor: pointer !important;
+
+    position: absolute !important;
+    right: 12px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+
+    z-index: 10000 !important;
+  }
+
+  .dueease-hamburger span {
+    display: block !important;
+
+    width: 24px !important;
+    height: 3px !important;
+
+    background: white !important;
+
+    border-radius: 3px !important;
+  }
+
+  .dueease-mobile-menu {
+    display: flex !important;
+
+    position: absolute !important;
+
+    top: 65px !important;
+    left: 0 !important;
+    right: 0 !important;
+
+    width: 100% !important;
+
+    flex-direction: column !important;
+    align-items: stretch !important;
+
+    background: #111827 !important;
+
+    padding: 10px 16px 16px !important;
+
+    border-top: 1px solid #374151 !important;
+
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25) !important;
+
+    z-index: 9999 !important;
+  }
+
+  .dueease-mobile-menu a {
+    display: block !important;
+
+    color: #d1d5db !important;
+
+    padding: 13px 10px !important;
+
+    font-size: 15px !important;
+    font-weight: 600 !important;
+
+    text-decoration: none !important;
+
+    border-bottom: 1px solid #374151 !important;
+  }
+
+  .dueease-mobile-menu a:hover {
+    color: white !important;
+    background: #1f2937 !important;
+  }
+
+  .dueease-mobile-menu button {
+    display: block !important;
+
+    width: 100% !important;
+
+    margin-top: 10px !important;
+
+    padding: 11px !important;
+
+    border: none !important;
+    border-radius: 8px !important;
+
+    background: #ef4444 !important;
+    color: white !important;
+
+    font-size: 14px !important;
+    font-weight: 600 !important;
+
+    cursor: pointer !important;
+  }
+}
+
+
+/* ==================================================
+   SMALL PHONES
+================================================== */
+
+@media (max-width: 480px) {
+
+  .dueease-navbar {
+    padding: 0 12px !important;
+  }
+
+  .dueease-logo {
+    font-size: 21px !important;
+  }
+
+  .dueease-hamburger {
+    right: 8px !important;
+  }
 }

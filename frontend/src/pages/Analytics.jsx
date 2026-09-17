@@ -41,11 +41,15 @@ function Analytics() {
       const data = await response.json();
 
       if (response.ok) {
-        setGroups(data.groups || data || []);
-      } else {
-        alert(
-          data.message || "Unable to load groups"
+        setGroups(
+          Array.isArray(data.groups)
+            ? data.groups
+            : Array.isArray(data)
+            ? data
+            : []
         );
+      } else {
+        alert(data.message || "Unable to load groups");
       }
     } catch (error) {
       console.error(error);
@@ -78,16 +82,38 @@ function Analytics() {
       const data = await response.json();
 
       if (response.ok) {
-        setAnalytics(data);
+        setAnalytics({
+          totalSpending: Number(data.totalSpending) || 0,
+          totalExpenses: Number(data.totalExpenses) || 0,
+          yourPaidAmount: Number(data.yourPaidAmount) || 0,
+          yourShare: Number(data.yourShare) || 0,
+
+          paidByMember: Array.isArray(data.paidByMember)
+            ? data.paidByMember
+            : [],
+
+          spendingByExpense: Array.isArray(
+            data.spendingByExpense
+          )
+            ? data.spendingByExpense
+            : [],
+
+          monthlySpending: Array.isArray(
+            data.monthlySpending
+          )
+            ? data.monthlySpending
+            : []
+        });
       } else {
         alert(
-          data.message ||
-            "Unable to load analytics"
+          data.message || "Unable to load analytics"
         );
+        setAnalytics(null);
       }
     } catch (error) {
       console.error(error);
       alert("Unable to connect to server");
+      setAnalytics(null);
     } finally {
       setAnalyticsLoading(false);
     }
@@ -140,6 +166,12 @@ function Analytics() {
     fetchAnalytics(groupId);
   };
 
+  const paidByMember = analytics?.paidByMember || [];
+  const spendingByExpense =
+    analytics?.spendingByExpense || [];
+  const monthlySpending =
+    analytics?.monthlySpending || [];
+
   return (
     <div>
       <Navbar />
@@ -155,9 +187,11 @@ function Analytics() {
           </p>
         </div>
 
-        {/* Group Selection */}
+
+        {/* GROUP SELECTION */}
 
         <section className="form-card analytics-selector">
+
           <h2>Select Group</h2>
 
           <p>
@@ -169,18 +203,21 @@ function Analytics() {
             <p>Loading groups...</p>
           ) : groups.length === 0 ? (
             <div className="empty-state">
+
               <h3>No groups found</h3>
 
               <p>
                 Create a group first to view
                 analytics.
               </p>
+
             </div>
           ) : (
             <select
               value={selectedGroup}
               onChange={handleGroupChange}
             >
+
               <option value="">
                 Select a group
               </option>
@@ -193,9 +230,14 @@ function Analytics() {
                   {group.name}
                 </option>
               ))}
+
             </select>
           )}
+
         </section>
+
+
+        {/* LOADING */}
 
         {analyticsLoading && (
           <div className="analytics-loading">
@@ -203,19 +245,23 @@ function Analytics() {
           </div>
         )}
 
+
         {analytics && !analyticsLoading && (
           <>
 
-            {/* Summary Cards */}
+
+            {/* SUMMARY */}
 
             <section className="analytics-summary">
 
               <div className="analytics-stat-card">
+
                 <div className="analytics-stat-icon">
                   💰
                 </div>
 
                 <div>
+
                   <p>Total Spending</p>
 
                   <h2>
@@ -224,29 +270,39 @@ function Analytics() {
                       analytics.totalSpending
                     ).toFixed(2)}
                   </h2>
+
                 </div>
+
               </div>
 
+
               <div className="analytics-stat-card">
+
                 <div className="analytics-stat-icon">
                   🧾
                 </div>
 
                 <div>
+
                   <p>Total Expenses</p>
 
                   <h2>
                     {analytics.totalExpenses}
                   </h2>
+
                 </div>
+
               </div>
 
+
               <div className="analytics-stat-card">
+
                 <div className="analytics-stat-icon">
                   👤
                 </div>
 
                 <div>
+
                   <p>Your Paid Amount</p>
 
                   <h2>
@@ -255,15 +311,20 @@ function Analytics() {
                       analytics.yourPaidAmount
                     ).toFixed(2)}
                   </h2>
+
                 </div>
+
               </div>
 
+
               <div className="analytics-stat-card">
+
                 <div className="analytics-stat-icon">
                   📊
                 </div>
 
                 <div>
+
                   <p>Your Share</p>
 
                   <h2>
@@ -272,113 +333,163 @@ function Analytics() {
                       analytics.yourShare
                     ).toFixed(2)}
                   </h2>
+
                 </div>
+
               </div>
 
             </section>
 
 
-            {/* Spending By Member */}
+            {/* SPENDING BY MEMBER */}
 
             <section className="analytics-section">
 
               <div className="section-title">
+
                 <div>
-                  <h2>Spending by Member</h2>
+
+                  <h2>
+                    Spending by Member
+                  </h2>
 
                   <p className="section-subtitle">
                     Compare how much each member
                     has paid.
                   </p>
+
                 </div>
+
               </div>
 
-              <div
-                style={{
-                  width: "100%",
-                  height: "400px",
-                  minHeight: "400px"
-                }}
-              >
 
-                <ResponsiveContainer
-                  width="100%"
-                  height="100%"
+              {paidByMember.length === 0 ? (
+
+                <div className="empty-state">
+
+                  <h3>
+                    No member spending data
+                  </h3>
+
+                  <p>
+                    Add expenses to see member
+                    spending.
+                  </p>
+
+                </div>
+
+              ) : (
+
+                <div
+                  style={{
+                    width: "100%",
+                    height: "400px",
+                    minHeight: "400px"
+                  }}
                 >
 
-                  <BarChart
-                    data={analytics.paidByMember.map(
-                      (person) => ({
-                        name: person.name || "User",
-                        amount:
-                          Number(person.amount) || 0
-                      })
-                    )}
-                    margin={{
-                      top: 20,
-                      right: 30,
-                      left: 20,
-                      bottom: 20
-                    }}
+                  <ResponsiveContainer
+                    width="100%"
+                    height="100%"
                   >
 
-                    <CartesianGrid
-                      strokeDasharray="3 3"
-                    />
+                    <BarChart
+                      data={paidByMember.map(
+                        (person) => ({
+                          name:
+                            person.name ||
+                            "User",
 
-                    <XAxis
-                      dataKey="name"
-                    />
+                          amount:
+                            Number(
+                              person.amount
+                            ) || 0
+                        })
+                      )}
+                      margin={{
+                        top: 20,
+                        right: 30,
+                        left: 20,
+                        bottom: 20
+                      }}
+                    >
 
-                    <YAxis />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                      />
 
-                    <Tooltip
-                      formatter={(value) =>
-                        `₹${Number(value).toFixed(2)}`
-                      }
-                    />
+                      <XAxis
+                        dataKey="name"
+                      />
 
-                    <Bar
-                      dataKey="amount"
-                      name="Amount Paid"
-                      fill="#2563eb"
-                      radius={[8, 8, 0, 0]}
-                    />
+                      <YAxis />
 
-                  </BarChart>
+                      <Tooltip
+                        formatter={(value) =>
+                          `₹${Number(
+                            value
+                          ).toFixed(2)}`
+                        }
+                      />
 
-                </ResponsiveContainer>
+                      <Bar
+                        dataKey="amount"
+                        name="Amount Paid"
+                        fill="#2563eb"
+                        radius={[
+                          8,
+                          8,
+                          0,
+                          0
+                        ]}
+                      />
 
-              </div>
+                    </BarChart>
+
+                  </ResponsiveContainer>
+
+                </div>
+
+              )}
 
             </section>
 
 
-            {/* Expense Distribution */}
+            {/* EXPENSE DISTRIBUTION */}
 
             <section className="analytics-section">
 
               <div className="section-title">
+
                 <div>
-                  <h2>Expense Distribution</h2>
+
+                  <h2>
+                    Expense Distribution
+                  </h2>
 
                   <p className="section-subtitle">
                     See how total spending is
                     distributed across expenses.
                   </p>
+
                 </div>
+
               </div>
 
-              {analytics.spendingByExpense.length ===
-              0 ? (
+
+              {spendingByExpense.length === 0 ? (
 
                 <div className="empty-state">
-                  <h3>No expense data</h3>
+
+                  <h3>
+                    No expense data
+                  </h3>
 
                   <p>
                     Add expenses to see the
                     distribution chart.
                   </p>
+
                 </div>
 
               ) : (
@@ -399,10 +510,12 @@ function Analytics() {
                     <PieChart>
 
                       <Pie
-                        data={analytics.spendingByExpense.map(
+                        data={spendingByExpense.map(
                           (expense) => ({
                             name:
-                              expense.description,
+                              expense.description ||
+                              "Expense",
+
                             value:
                               Number(
                                 expense.amount
@@ -416,7 +529,7 @@ function Analytics() {
                         label
                       >
 
-                        {analytics.spendingByExpense.map(
+                        {spendingByExpense.map(
                           (_, index) => (
                             <Cell
                               key={`cell-${index}`}
@@ -428,7 +541,9 @@ function Analytics() {
 
                       <Tooltip
                         formatter={(value) =>
-                          `₹${Number(value).toFixed(2)}`
+                          `₹${Number(
+                            value
+                          ).toFixed(2)}`
                         }
                       />
 
@@ -445,124 +560,176 @@ function Analytics() {
             </section>
 
 
-            {/* Member Details */}
+            {/* MEMBER DETAILS */}
 
             <section className="analytics-section">
 
               <div className="section-title">
+
                 <div>
-                  <h2>Member Details</h2>
+
+                  <h2>
+                    Member Details
+                  </h2>
 
                   <p className="section-subtitle">
                     Detailed spending information.
                   </p>
+
                 </div>
+
               </div>
 
-              <div className="member-spending-list">
 
-                {analytics.paidByMember.map(
-                  (person) => {
+              {paidByMember.length === 0 ? (
 
-                    const percentage =
-                      analytics.totalSpending > 0
-                        ? (
-                            (Number(
-                              person.amount
-                            ) /
-                              Number(
-                                analytics.totalSpending
-                              )) *
-                            100
-                          )
-                        : 0;
+                <div className="empty-state">
 
-                    return (
-                      <div
-                        className="member-spending-card"
-                        key={person.userId}
-                      >
+                  <h3>
+                    No member data
+                  </h3>
 
-                        <div className="member-spending-header">
+                  <p>
+                    Add expenses to see member
+                    details.
+                  </p>
 
-                          <div className="member-spending-user">
+                </div>
 
-                            <div className="analytics-avatar">
-                              {person.name
-                                ? person.name
-                                    .charAt(0)
-                                    .toUpperCase()
-                                : "U"}
+              ) : (
+
+                <div className="member-spending-list">
+
+                  {paidByMember.map(
+                    (person) => {
+
+                      const percentage =
+                        analytics.totalSpending > 0
+                          ? (
+                              (Number(
+                                person.amount
+                              ) /
+                                Number(
+                                  analytics.totalSpending
+                                )) *
+                              100
+                            )
+                          : 0;
+
+                      return (
+                        <div
+                          className="member-spending-card"
+                          key={
+                            person.userId ||
+                            person.email ||
+                            person.name
+                          }
+                        >
+
+                          <div className="member-spending-header">
+
+                            <div className="member-spending-user">
+
+                              <div className="analytics-avatar">
+
+                                {person.name
+                                  ? person.name
+                                      .charAt(0)
+                                      .toUpperCase()
+                                  : "U"}
+
+                              </div>
+
+                              <div>
+
+                                <strong>
+                                  {person.name ||
+                                    "User"}
+                                </strong>
+
+                                <small>
+                                  {person.email ||
+                                    ""}
+                                </small>
+
+                              </div>
+
                             </div>
 
-                            <div>
-                              <strong>
-                                {person.name}
-                              </strong>
 
-                              <small>
-                                {person.email}
-                              </small>
-                            </div>
+                            <strong>
+                              ₹
+                              {Number(
+                                person.amount
+                              ).toFixed(2)}
+                            </strong>
 
                           </div>
 
-                          <strong>
-                            ₹
-                            {Number(
-                              person.amount
-                            ).toFixed(2)}
-                          </strong>
+
+                          <div className="analytics-progress">
+
+                            <div
+                              className="analytics-progress-fill"
+                              style={{
+                                width: `${Math.min(
+                                  percentage,
+                                  100
+                                )}%`
+                              }}
+                            />
+
+                          </div>
+
+
+                          <span className="analytics-percentage">
+
+                            {percentage.toFixed(1)}%
+                            {" "}of total spending
+
+                          </span>
 
                         </div>
+                      );
+                    }
+                  )}
 
-                        <div className="analytics-progress">
+                </div>
 
-                          <div
-                            className="analytics-progress-fill"
-                            style={{
-                              width: `${percentage}%`
-                            }}
-                          />
-
-                        </div>
-
-                        <span className="analytics-percentage">
-                          {percentage.toFixed(1)}% of
-                          total spending
-                        </span>
-
-                      </div>
-                    );
-                  }
-                )}
-
-              </div>
+              )}
 
             </section>
 
 
-            {/* Expense Breakdown */}
+            {/* EXPENSE BREAKDOWN */}
 
             <section className="analytics-section">
 
               <div className="section-title">
+
                 <div>
-                  <h2>Expense Breakdown</h2>
+
+                  <h2>
+                    Expense Breakdown
+                  </h2>
 
                   <p className="section-subtitle">
                     Individual expenses recorded in
                     this group.
                   </p>
+
                 </div>
+
               </div>
 
-              {analytics.spendingByExpense.length ===
-              0 ? (
+
+              {spendingByExpense.length === 0 ? (
 
                 <div className="empty-state">
 
-                  <h3>No expenses yet</h3>
+                  <h3>
+                    No expenses yet
+                  </h3>
 
                   <p>
                     Add expenses to see the
@@ -575,12 +742,15 @@ function Analytics() {
 
                 <div className="expense-breakdown-grid">
 
-                  {analytics.spendingByExpense.map(
+                  {spendingByExpense.map(
                     (expense, index) => (
 
                       <div
                         className="analytics-expense-card"
-                        key={index}
+                        key={
+                          expense._id ||
+                          index
+                        }
                       >
 
                         <div className="analytics-expense-icon">
@@ -590,23 +760,27 @@ function Analytics() {
                         <div className="analytics-expense-info">
 
                           <h3>
-                            {expense.description}
+                            {expense.description ||
+                              "Expense"}
                           </h3>
 
                           <p>
                             Paid by{" "}
                             <strong>
-                              {expense.paidBy}
+                              {expense.paidBy ||
+                                "User"}
                             </strong>
                           </p>
 
                         </div>
 
                         <strong className="analytics-expense-amount">
+
                           ₹
                           {Number(
                             expense.amount
                           ).toFixed(2)}
+
                         </strong>
 
                       </div>
@@ -621,31 +795,39 @@ function Analytics() {
             </section>
 
 
-            {/* Monthly Spending Chart */}
+            {/* MONTHLY SPENDING */}
 
             <section className="analytics-section">
 
               <div className="section-title">
+
                 <div>
-                  <h2>Monthly Spending</h2>
+
+                  <h2>
+                    Monthly Spending
+                  </h2>
 
                   <p className="section-subtitle">
                     Track how group spending changes
                     over time.
                   </p>
+
                 </div>
+
               </div>
 
-              {analytics.monthlySpending.length ===
-              0 ? (
+
+              {monthlySpending.length === 0 ? (
 
                 <div className="empty-state">
 
-                  <h3>No monthly data</h3>
+                  <h3>
+                    No monthly data
+                  </h3>
 
                   <p>
-                    Add expenses to generate monthly
-                    spending data.
+                    Add expenses to generate
+                    monthly spending data.
                   </p>
 
                 </div>
@@ -666,11 +848,15 @@ function Analytics() {
                   >
 
                     <LineChart
-                      data={analytics.monthlySpending.map(
+                      data={monthlySpending.map(
                         (item) => ({
-                          month: item.month,
+                          month:
+                            item.month,
+
                           amount:
-                            Number(item.amount) || 0
+                            Number(
+                              item.amount
+                            ) || 0
                         })
                       )}
                       margin={{
@@ -693,7 +879,9 @@ function Analytics() {
 
                       <Tooltip
                         formatter={(value) =>
-                          `₹${Number(value).toFixed(2)}`
+                          `₹${Number(
+                            value
+                          ).toFixed(2)}`
                         }
                       />
 

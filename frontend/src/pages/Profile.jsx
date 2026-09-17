@@ -3,11 +3,16 @@ import Navbar from "../Navbar";
 
 function Profile() {
     const [user, setUser] = useState(null);
+
+    const [name, setName] = useState("");
     const [upiId, setUpiId] = useState("");
+
     const [message, setMessage] = useState("");
     const [error, setError] = useState("");
+
     const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
+    const [savingName, setSavingName] = useState(false);
+    const [savingUPI, setSavingUPI] = useState(false);
 
     const fetchProfile = async () => {
         try {
@@ -26,9 +31,13 @@ function Profile() {
 
             if (response.ok) {
                 setUser(data.user);
+                setName(data.user.name || "");
                 setUpiId(data.user.upiId || "");
             } else {
-                setError(data.message || "Failed to load profile");
+                setError(
+                    data.message ||
+                    "Failed to load profile"
+                );
             }
         } catch (error) {
             setError("Unable to connect to server");
@@ -40,6 +49,62 @@ function Profile() {
     useEffect(() => {
         fetchProfile();
     }, []);
+
+    // ==================== UPDATE NAME ====================
+
+    const handleSaveName = async (e) => {
+        e.preventDefault();
+
+        setMessage("");
+        setError("");
+
+        if (!name.trim()) {
+            setError("Please enter your name");
+            return;
+        }
+
+        try {
+            setSavingName(true);
+
+            const token = localStorage.getItem("token");
+
+            const response = await fetch(
+                "http://localhost:5000/api/auth/profile",
+                {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        name: name.trim()
+                    })
+                }
+            );
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setUser(data.user);
+                setName(data.user.name || "");
+
+                setMessage(
+                    "Profile updated successfully!"
+                );
+            } else {
+                setError(
+                    data.message ||
+                    "Failed to update profile"
+                );
+            }
+        } catch (error) {
+            setError("Unable to connect to server");
+        } finally {
+            setSavingName(false);
+        }
+    };
+
+    // ==================== UPDATE UPI ====================
 
     const handleSaveUPI = async (e) => {
         e.preventDefault();
@@ -53,7 +118,7 @@ function Profile() {
         }
 
         try {
-            setSaving(true);
+            setSavingUPI(true);
 
             const token = localStorage.getItem("token");
 
@@ -76,30 +141,46 @@ function Profile() {
             if (response.ok) {
                 setUser(data.user);
                 setUpiId(data.user.upiId || "");
-                setMessage("UPI ID updated successfully!");
+
+                setMessage(
+                    "UPI ID updated successfully!"
+                );
             } else {
-                setError(data.message || "Failed to update UPI ID");
+                setError(
+                    data.message ||
+                    "Failed to update UPI ID"
+                );
             }
         } catch (error) {
             setError("Unable to connect to server");
         } finally {
-            setSaving(false);
+            setSavingUPI(false);
         }
     };
+
+    // ==================== LOADING ====================
 
     if (loading) {
         return (
             <div className="app">
+
                 <Navbar />
 
                 <div className="container">
+
                     <div className="card">
-                        <p>Loading profile...</p>
+                        <p>
+                            Loading profile...
+                        </p>
                     </div>
+
                 </div>
+
             </div>
         );
     }
+
+    // ==================== UI ====================
 
     return (
         <div className="app">
@@ -109,27 +190,44 @@ function Profile() {
             <div className="container">
 
                 <div className="page-header">
+
                     <div>
-                        <h1>My Profile</h1>
+
+                        <h1>
+                            My Profile
+                        </h1>
 
                         <p>
                             Manage your DueEase account
                             and payment details.
                         </p>
+
                     </div>
+
                 </div>
+
+                {/* ==================== MESSAGES ==================== */}
 
                 {error && (
                     <div
                         className="card"
                         style={{
-                            borderLeft: "5px solid #ef4444",
-                            marginBottom: "20px"
+                            borderLeft:
+                                "5px solid #ef4444",
+                            marginBottom:
+                                "20px"
                         }}
                     >
-                        <p style={{ color: "#dc2626" }}>
+
+                        <p
+                            style={{
+                                color:
+                                    "#dc2626"
+                            }}
+                        >
                             {error}
                         </p>
+
                     </div>
                 )}
 
@@ -137,13 +235,22 @@ function Profile() {
                     <div
                         className="card"
                         style={{
-                            borderLeft: "5px solid #22c55e",
-                            marginBottom: "20px"
+                            borderLeft:
+                                "5px solid #22c55e",
+                            marginBottom:
+                                "20px"
                         }}
                     >
-                        <p style={{ color: "#16a34a" }}>
+
+                        <p
+                            style={{
+                                color:
+                                    "#16a34a"
+                            }}
+                        >
                             {message}
                         </p>
+
                     </div>
                 )}
 
@@ -157,90 +264,150 @@ function Profile() {
                         }}
                     >
 
-                        <div className="card">
-
-                            <h2>Account Details</h2>
-
-                            <div
-                                style={{
-                                    marginTop: "20px"
-                                }}
-                            >
-                                <p
-                                    style={{
-                                        color: "#6b7280",
-                                        fontSize: "13px"
-                                    }}
-                                >
-                                    Name
-                                </p>
-
-                                <h3>
-                                    {user.name}
-                                </h3>
-                            </div>
-
-                            <div
-                                style={{
-                                    marginTop: "20px"
-                                }}
-                            >
-                                <p
-                                    style={{
-                                        color: "#6b7280",
-                                        fontSize: "13px"
-                                    }}
-                                >
-                                    Email
-                                </p>
-
-                                <h3>
-                                    {user.email}
-                                </h3>
-                            </div>
-
-                            <div
-                                style={{
-                                    marginTop: "20px"
-                                }}
-                            >
-                                <p
-                                    style={{
-                                        color: "#6b7280",
-                                        fontSize: "13px"
-                                    }}
-                                >
-                                    Account
-                                </p>
-
-                                <h3>
-                                    DueEase Member
-                                </h3>
-                            </div>
-
-                        </div>
+                        {/* ==================== ACCOUNT DETAILS ==================== */}
 
                         <div className="card">
 
-                            <h2>UPI Payment Details</h2>
+                            <h2>
+                                Account Details
+                            </h2>
 
                             <p
                                 style={{
-                                    color: "#6b7280",
-                                    marginTop: "8px",
-                                    marginBottom: "20px"
+                                    color:
+                                        "#6b7280",
+                                    marginTop:
+                                        "8px",
+                                    marginBottom:
+                                        "20px"
                                 }}
                             >
-                                Add your UPI ID so group members
-                                can pay you directly through the
-                                settlement QR code.
+                                Update your personal
+                                account information.
                             </p>
 
                             <form
-                                onSubmit={handleSaveUPI}
+                                onSubmit={
+                                    handleSaveName
+                                }
                                 style={{
-                                    display: "flex",
-                                    flexDirection: "column",
+                                    display:
+                                        "flex",
+                                    flexDirection:
+                                        "column",
+                                    gap: "10px"
+                                }}
+                            >
+
+                                <label>
+                                    Name
+                                </label>
+
+                                <input
+                                    type="text"
+                                    value={name}
+                                    onChange={(e) =>
+                                        setName(
+                                            e.target.value
+                                        )
+                                    }
+                                    placeholder="Enter your name"
+                                />
+
+                                <label
+                                    style={{
+                                        marginTop:
+                                            "12px"
+                                    }}
+                                >
+                                    Email
+                                </label>
+
+                                <input
+                                    type="email"
+                                    value={
+                                        user.email
+                                    }
+                                    disabled
+                                    style={{
+                                        background:
+                                            "#f3f4f6",
+                                        cursor:
+                                            "not-allowed"
+                                    }}
+                                />
+
+                                <button
+                                    type="submit"
+                                    disabled={
+                                        savingName
+                                    }
+                                    style={{
+                                        marginTop:
+                                            "10px",
+                                        border:
+                                            "none",
+                                        background:
+                                            "#4f46e5",
+                                        color:
+                                            "white",
+                                        padding:
+                                            "11px 18px",
+                                        borderRadius:
+                                            "9px",
+                                        fontWeight:
+                                            "700",
+                                        cursor:
+                                            savingName
+                                                ? "not-allowed"
+                                                : "pointer",
+                                        opacity:
+                                            savingName
+                                                ? 0.7
+                                                : 1
+                                    }}
+                                >
+                                    {savingName
+                                        ? "Saving..."
+                                        : "Save Profile"}
+                                </button>
+
+                            </form>
+
+                        </div>
+
+                        {/* ==================== UPI DETAILS ==================== */}
+
+                        <div className="card">
+
+                            <h2>
+                                UPI Payment Details
+                            </h2>
+
+                            <p
+                                style={{
+                                    color:
+                                        "#6b7280",
+                                    marginTop:
+                                        "8px",
+                                    marginBottom:
+                                        "20px"
+                                }}
+                            >
+                                Add your UPI ID so group
+                                members can pay you directly
+                                through the settlement QR code.
+                            </p>
+
+                            <form
+                                onSubmit={
+                                    handleSaveUPI
+                                }
+                                style={{
+                                    display:
+                                        "flex",
+                                    flexDirection:
+                                        "column",
                                     gap: "10px"
                                 }}
                             >
@@ -253,31 +420,44 @@ function Profile() {
                                     type="text"
                                     value={upiId}
                                     onChange={(e) =>
-                                        setUpiId(e.target.value)
+                                        setUpiId(
+                                            e.target.value
+                                        )
                                     }
                                     placeholder="example@upi"
                                 />
 
                                 <button
                                     type="submit"
-                                    disabled={saving}
+                                    disabled={
+                                        savingUPI
+                                    }
                                     style={{
-                                        marginTop: "10px",
-                                        border: "none",
-                                        background: "#4f46e5",
-                                        color: "white",
-                                        padding: "11px 18px",
-                                        borderRadius: "9px",
-                                        fontWeight: "700",
-                                        cursor: saving
-                                            ? "not-allowed"
-                                            : "pointer",
-                                        opacity: saving
-                                            ? 0.7
-                                            : 1
+                                        marginTop:
+                                            "10px",
+                                        border:
+                                            "none",
+                                        background:
+                                            "#4f46e5",
+                                        color:
+                                            "white",
+                                        padding:
+                                            "11px 18px",
+                                        borderRadius:
+                                            "9px",
+                                        fontWeight:
+                                            "700",
+                                        cursor:
+                                            savingUPI
+                                                ? "not-allowed"
+                                                : "pointer",
+                                        opacity:
+                                            savingUPI
+                                                ? 0.7
+                                                : 1
                                     }}
                                 >
-                                    {saving
+                                    {savingUPI
                                         ? "Saving..."
                                         : "Save UPI ID"}
                                 </button>

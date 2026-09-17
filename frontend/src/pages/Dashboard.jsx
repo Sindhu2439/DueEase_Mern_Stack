@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../Navbar";
 import socket from "../socket";
@@ -7,11 +7,33 @@ function Dashboard() {
   const [groups, setGroups] = useState([]);
   const [expenseCount, setExpenseCount] = useState(0);
   const [totalSpent, setTotalSpent] = useState(0);
+  const [recentExpenses, setRecentExpenses] = useState([]);
+  const [userName, setUserName] = useState("there");
   const [loading, setLoading] = useState(true);
 
   const fetchDashboardData = async () => {
     try {
       const token = localStorage.getItem("token");
+
+      if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      const profileResponse = await fetch(
+        "http://localhost:5000/api/auth/profile",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      const profileData = await profileResponse.json();
+
+      if (profileResponse.ok && profileData.user) {
+        setUserName(profileData.user.name || "there");
+      }
 
       const groupResponse = await fetch(
         "http://localhost:5000/api/groups",
@@ -35,6 +57,7 @@ function Dashboard() {
 
       let totalExpenses = 0;
       let totalAmount = 0;
+      let allExpenses = [];
 
       for (const group of userGroups) {
         try {
@@ -56,6 +79,11 @@ function Dashboard() {
 
             groupExpenses.forEach((expense) => {
               totalAmount += Number(expense.amount) || 0;
+
+              allExpenses.push({
+                ...expense,
+                groupName: group.name
+              });
             });
           }
         } catch (error) {
@@ -66,8 +94,16 @@ function Dashboard() {
         }
       }
 
+      allExpenses.sort((a, b) => {
+        const dateA = new Date(a.createdAt || 0);
+        const dateB = new Date(b.createdAt || 0);
+
+        return dateB - dateA;
+      });
+
       setExpenseCount(totalExpenses);
       setTotalSpent(totalAmount);
+      setRecentExpenses(allExpenses.slice(0, 5));
     } catch (error) {
       console.error("Dashboard error:", error);
     } finally {
@@ -88,33 +124,74 @@ function Dashboard() {
       fetchDashboardData();
     };
 
+    const handleGroupUpdated = () => {
+      fetchDashboardData();
+    };
+
     socket.on("expenseAdded", handleExpenseAdded);
     socket.on("expenseDeleted", handleExpenseDeleted);
+    socket.on("groupUpdated", handleGroupUpdated);
 
     return () => {
       socket.off("expenseAdded", handleExpenseAdded);
       socket.off("expenseDeleted", handleExpenseDeleted);
+      socket.off("groupUpdated", handleGroupUpdated);
       socket.disconnect();
     };
   }, []);
 
-  const uniqueMemberIds = new Set();
+  const totalMembers = useMemo(() => {
+    const uniqueMemberIds = new Set();
 
-  groups.forEach((group) => {
-    (group.members || []).forEach((member) => {
-      uniqueMemberIds.add(member._id);
+    groups.forEach((group) => {
+      (group.members || []).forEach((member) => {
+        if (member?._id) {
+          uniqueMemberIds.add(member._id);
+        }
+      });
     });
-  });
 
-  const totalMembers = uniqueMemberIds.size;
+    return uniqueMemberIds.size;
+  }, [groups]);
+
+  const averageExpense =
+    expenseCount > 0
+      ? totalSpent / expenseCount
+      : 0;
+
+  const formatCurrency = (amount) => {
+    return `₹${Number(amount || 0).toLocaleString(
+      "en-IN",
+      {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      }
+    )}`;
+  };
+
+  const formatDate = (date) => {
+    if (!date) {
+      return "Recently";
+    }
+
+    return new Date(date).toLocaleDateString(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }
+    );
+  };
 
   return (
-    <div>
+    <div className="dashboard-page">
       <Navbar />
 
       <main className="dashboard-container">
 
         <section className="dashboard-hero">
+
           <div className="dashboard-hero-content">
 
             <span className="dashboard-badge">
@@ -122,7 +199,8 @@ function Dashboard() {
             </span>
 
             <h1>
-              Welcome to <span>DueEase</span> 👋
+              Welcome back,{" "}
+              <span>{userName}</span> 👋
             </h1>
 
             <p>
@@ -154,12 +232,14 @@ function Dashboard() {
           <div className="dashboard-hero-icon">
             💸
           </div>
+
         </section>
 
 
         <section className="dashboard-stats">
 
           <div className="stat-card">
+
             <div className="stat-icon">
               👥
             </div>
@@ -170,11 +250,17 @@ function Dashboard() {
               <h2>
                 {loading ? "..." : groups.length}
               </h2>
+
+              <small>
+                Active expense groups
+              </small>
             </div>
+
           </div>
 
 
           <div className="stat-card">
+
             <div className="stat-icon">
               🧑‍🤝‍🧑
             </div>
@@ -185,11 +271,17 @@ function Dashboard() {
               <h2>
                 {loading ? "..." : totalMembers}
               </h2>
+
+              <small>
+                Across your groups
+              </small>
             </div>
+
           </div>
 
 
           <div className="stat-card">
+
             <div className="stat-icon">
               🧾
             </div>
@@ -200,11 +292,17 @@ function Dashboard() {
               <h2>
                 {loading ? "..." : expenseCount}
               </h2>
+
+              <small>
+                Recorded expenses
+              </small>
             </div>
+
           </div>
 
 
           <div className="stat-card">
+
             <div className="stat-icon">
               💰
             </div>
@@ -215,9 +313,77 @@ function Dashboard() {
               <h2>
                 {loading
                   ? "..."
-                  : `₹${totalSpent.toFixed(2)}`}
+                  : formatCurrency(totalSpent)}
               </h2>
+
+              <small>
+                All group expenses
+              </small>
             </div>
+
+          </div>
+
+        </section>
+
+
+        <section className="dashboard-overview-grid">
+
+          <div className="dashboard-overview-card">
+
+            <div className="overview-card-header">
+
+              <div>
+                <span className="dashboard-card-label">
+                  Spending Overview
+                </span>
+
+                <h2>
+                  {loading
+                    ? "..."
+                    : formatCurrency(totalSpent)}
+                </h2>
+              </div>
+
+              <div className="overview-icon">
+                📊
+              </div>
+
+            </div>
+
+            <p>
+              Total amount recorded across all your
+              expense groups.
+            </p>
+
+          </div>
+
+
+          <div className="dashboard-overview-card">
+
+            <div className="overview-card-header">
+
+              <div>
+                <span className="dashboard-card-label">
+                  Average Expense
+                </span>
+
+                <h2>
+                  {loading
+                    ? "..."
+                    : formatCurrency(averageExpense)}
+                </h2>
+              </div>
+
+              <div className="overview-icon">
+                💳
+              </div>
+
+            </div>
+
+            <p>
+              Average amount per recorded expense.
+            </p>
+
           </div>
 
         </section>
@@ -226,14 +392,133 @@ function Dashboard() {
         <section className="dashboard-section">
 
           <div className="section-title">
+
             <div>
-              <h2>Manage Your Expenses</h2>
+              <span className="dashboard-card-label">
+                Activity
+              </span>
+
+              <h2>
+                Recent Expenses
+              </h2>
+
+              <p>
+                Quickly review your latest shared
+                expenses.
+              </p>
+            </div>
+
+            <Link
+              to="/expenses"
+              className="dashboard-view-link"
+            >
+              View All →
+            </Link>
+
+          </div>
+
+
+          <div className="recent-expenses-card">
+
+            {loading ? (
+              <div className="dashboard-empty-state">
+                Loading expenses...
+              </div>
+            ) : recentExpenses.length === 0 ? (
+              <div className="dashboard-empty-state">
+
+                <div className="empty-icon">
+                  🧾
+                </div>
+
+                <h3>
+                  No expenses yet
+                </h3>
+
+                <p>
+                  Add your first shared expense to
+                  start tracking spending.
+                </p>
+
+                <Link
+                  to="/expenses"
+                  className="primary-action"
+                >
+                  + Add Expense
+                </Link>
+
+              </div>
+            ) : (
+              <div className="recent-expense-list">
+
+                {recentExpenses.map((expense) => (
+
+                  <div
+                    className="recent-expense-item"
+                    key={expense._id}
+                  >
+
+                    <div className="recent-expense-icon">
+                      💰
+                    </div>
+
+                    <div className="recent-expense-info">
+
+                      <h3>
+                        {expense.description ||
+                          "Unnamed Expense"}
+                      </h3>
+
+                      <p>
+                        {expense.groupName ||
+                          "Group"}{" "}
+                        •{" "}
+                        {formatDate(
+                          expense.createdAt
+                        )}
+                      </p>
+
+                    </div>
+
+                    <div className="recent-expense-amount">
+                      {formatCurrency(
+                        expense.amount
+                      )}
+                    </div>
+
+                  </div>
+
+                ))}
+
+              </div>
+            )}
+
+          </div>
+
+        </section>
+
+
+        <section className="dashboard-section">
+
+          <div className="section-title">
+
+            <div>
+
+              <span className="dashboard-card-label">
+                Everything in one place
+              </span>
+
+              <h2>
+                Manage Your Expenses
+              </h2>
 
               <p>
                 Everything you need to manage shared
                 expenses in one place.
               </p>
+
             </div>
+
           </div>
 
 
@@ -243,11 +528,14 @@ function Dashboard() {
               to="/groups"
               className="dashboard-feature-card"
             >
+
               <div className="feature-icon">
                 👥
               </div>
 
-              <h3>Groups</h3>
+              <h3>
+                Groups
+              </h3>
 
               <p>
                 Create groups for roommates, trips,
@@ -257,6 +545,7 @@ function Dashboard() {
               <span>
                 Manage Groups →
               </span>
+
             </Link>
 
 
@@ -264,11 +553,14 @@ function Dashboard() {
               to="/expenses"
               className="dashboard-feature-card"
             >
+
               <div className="feature-icon">
                 💰
               </div>
 
-              <h3>Expenses</h3>
+              <h3>
+                Expenses
+              </h3>
 
               <p>
                 Record expenses and split them equally,
@@ -278,6 +570,7 @@ function Dashboard() {
               <span>
                 Manage Expenses →
               </span>
+
             </Link>
 
 
@@ -285,11 +578,14 @@ function Dashboard() {
               to="/balances"
               className="dashboard-feature-card"
             >
+
               <div className="feature-icon">
                 📊
               </div>
 
-              <h3>Balances</h3>
+              <h3>
+                Balances
+              </h3>
 
               <p>
                 Quickly see who owes money and who
@@ -299,6 +595,7 @@ function Dashboard() {
               <span>
                 View Balances →
               </span>
+
             </Link>
 
 
@@ -306,11 +603,14 @@ function Dashboard() {
               to="/settlements"
               className="dashboard-feature-card"
             >
+
               <div className="feature-icon">
                 🤝
               </div>
 
-              <h3>Smart Settlements</h3>
+              <h3>
+                Smart Settlements
+              </h3>
 
               <p>
                 Reduce unnecessary transactions using
@@ -320,6 +620,7 @@ function Dashboard() {
               <span>
                 View Settlements →
               </span>
+
             </Link>
 
 
@@ -327,11 +628,14 @@ function Dashboard() {
               to="/analytics"
               className="dashboard-feature-card"
             >
+
               <div className="feature-icon">
                 📈
               </div>
 
-              <h3>Analytics</h3>
+              <h3>
+                Analytics
+              </h3>
 
               <p>
                 Understand spending patterns with
@@ -341,6 +645,7 @@ function Dashboard() {
               <span>
                 View Analytics →
               </span>
+
             </Link>
 
 
@@ -350,7 +655,9 @@ function Dashboard() {
                 🔐
               </div>
 
-              <h3>Secure Access</h3>
+              <h3>
+                Secure Access
+              </h3>
 
               <p>
                 JWT authentication and protected
@@ -371,6 +678,10 @@ function Dashboard() {
 
         <section className="dashboard-info">
 
+          <span className="dashboard-card-label">
+            Simple workflow
+          </span>
+
           <h2>
             How DueEase Works
           </h2>
@@ -384,6 +695,7 @@ function Dashboard() {
           <div className="dashboard-steps">
 
             <div className="dashboard-step">
+
               <div className="step-number">
                 1
               </div>
@@ -398,10 +710,12 @@ function Dashboard() {
                   members to your group.
                 </p>
               </div>
+
             </div>
 
 
             <div className="dashboard-step">
+
               <div className="step-number">
                 2
               </div>
@@ -416,10 +730,12 @@ function Dashboard() {
                   how the cost should be divided.
                 </p>
               </div>
+
             </div>
 
 
             <div className="dashboard-step">
+
               <div className="step-number">
                 3
               </div>
@@ -434,10 +750,12 @@ function Dashboard() {
                   needs to receive money.
                 </p>
               </div>
+
             </div>
 
 
             <div className="dashboard-step">
+
               <div className="step-number">
                 4
               </div>
@@ -452,6 +770,7 @@ function Dashboard() {
                   the number of payments required.
                 </p>
               </div>
+
             </div>
 
           </div>
@@ -474,9 +793,9 @@ function Dashboard() {
             <p>
               DueEase combines JWT authentication,
               flexible expense splitting, balance
-              calculation, analytics, and a debt
-              simplification algorithm into one
-              full-stack application.
+              calculation, analytics, real-time updates,
+              UPI payments, and a debt simplification
+              algorithm into one full-stack application.
             </p>
 
           </div>
