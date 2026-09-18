@@ -1,4 +1,6 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
+
 import Navbar from "../Navbar";
 import socket from "../socket";
 
@@ -11,6 +13,9 @@ function Groups() {
   const [loading, setLoading] = useState(true);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
+
+
+  // ==================== FETCH GROUPS ====================
 
   const fetchGroups = async () => {
     try {
@@ -30,15 +35,25 @@ function Groups() {
       if (response.ok) {
         setGroups(data.groups || data || []);
       } else {
-        alert(data.message || "Unable to load groups");
+        toast.error(
+          data.message || "Unable to load groups"
+        );
       }
+
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server");
+
+      toast.error(
+        "Unable to connect to server"
+      );
+
     } finally {
       setLoading(false);
     }
   };
+
+
+  // ==================== SOCKET ====================
 
   useEffect(() => {
     fetchGroups();
@@ -49,193 +64,317 @@ function Groups() {
       fetchGroups();
     };
 
-    socket.on("groupUpdated", handleGroupUpdated);
+    socket.on(
+      "groupUpdated",
+      handleGroupUpdated
+    );
 
     return () => {
-      socket.off("groupUpdated", handleGroupUpdated);
+      socket.off(
+        "groupUpdated",
+        handleGroupUpdated
+      );
+
       socket.disconnect();
     };
   }, []);
 
+
+  // ==================== JOIN GROUP ROOMS ====================
+
   useEffect(() => {
     if (groups.length > 0) {
       groups.forEach((group) => {
-        socket.emit("joinGroup", group._id);
+        socket.emit(
+          "joinGroup",
+          group._id
+        );
       });
     }
   }, [groups]);
+
+
+  // ==================== CREATE GROUP ====================
 
   const handleCreateGroup = async (e) => {
     e.preventDefault();
 
     if (!groupName.trim()) {
-      alert("Please enter a group name");
+      toast.error(
+        "Please enter a group name"
+      );
       return;
     }
 
     try {
       setCreatingGroup(true);
 
-      const token = localStorage.getItem("token");
+      const token =
+        localStorage.getItem("token");
 
       const response = await fetch(
         "http://localhost:5000/api/groups",
         {
           method: "POST",
+
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${token}`
           },
+
           body: JSON.stringify({
             name: groupName.trim()
           })
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (response.ok) {
-        alert("Group created successfully!");
+
+        toast.success(
+          "Group created successfully!"
+        );
 
         setGroupName("");
+
         await fetchGroups();
+
       } else {
-        alert(data.message || "Unable to create group");
+
+        toast.error(
+          data.message ||
+          "Unable to create group"
+        );
       }
+
     } catch (error) {
+
       console.error(error);
-      alert("Unable to connect to server");
+
+      toast.error(
+        "Unable to connect to server"
+      );
+
     } finally {
+
       setCreatingGroup(false);
+
     }
   };
+
+
+  // ==================== ADD MEMBER ====================
 
   const handleAddMember = async (e) => {
     e.preventDefault();
 
     if (!selectedGroup) {
-      alert("Please select a group");
+      toast.error(
+        "Please select a group"
+      );
       return;
     }
 
     if (!memberEmail.trim()) {
-      alert("Please enter member email");
+      toast.error(
+        "Please enter member email"
+      );
       return;
     }
 
     try {
+
       setAddingMember(true);
 
-      const token = localStorage.getItem("token");
+      const token =
+        localStorage.getItem("token");
 
       const response = await fetch(
         `http://localhost:5000/api/groups/${selectedGroup}/members`,
         {
           method: "POST",
+
           headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`
+            "Content-Type":
+              "application/json",
+
+            Authorization:
+              `Bearer ${token}`
           },
+
           body: JSON.stringify({
-            email: memberEmail.trim()
+            email:
+              memberEmail.trim()
           })
         }
       );
 
-      const data = await response.json();
+      const data =
+        await response.json();
 
       if (response.ok) {
-        alert("Member added successfully!");
+
+        toast.success(
+          "Member added successfully!"
+        );
 
         setMemberEmail("");
+
         await fetchGroups();
+
       } else {
-        alert(data.message || "Unable to add member");
+
+        toast.error(
+          data.message ||
+          "Unable to add member"
+        );
       }
+
     } catch (error) {
+
       console.error(error);
-      alert("Unable to connect to server");
+
+      toast.error(
+        "Unable to connect to server"
+      );
+
     } finally {
+
       setAddingMember(false);
+
     }
   };
 
-  const totalMembers = groups.reduce(
-    (total, group) =>
-      total + (group.members?.length || 0),
-    0
-  );
+
+  // ==================== TOTAL MEMBERS ====================
+
+  const totalMembers =
+    groups.reduce(
+      (total, group) =>
+        total +
+        (group.members?.length || 0),
+      0
+    );
+
+
+  // ==================== UI ====================
 
   return (
     <div>
+
       <Navbar />
 
       <main className="page-container">
 
+
+        {/* ==================== HEADER ==================== */}
+
         <div className="page-header">
+
           <span className="dashboard-badge">
             Group Management
           </span>
 
-          <h1>My Groups</h1>
+          <h1>
+            My Groups
+          </h1>
 
           <p>
             Create groups, add members, and organize
             shared expenses with ease.
           </p>
+
         </div>
 
 
+        {/* ==================== STATS ==================== */}
+
         <section className="dashboard-stats">
 
+
           <div className="stat-card">
+
             <div className="stat-icon">
               👥
             </div>
 
             <div>
-              <span>Total Groups</span>
+
+              <span>
+                Total Groups
+              </span>
 
               <h2>
-                {loading ? "..." : groups.length}
+                {loading
+                  ? "..."
+                  : groups.length}
               </h2>
+
             </div>
+
           </div>
 
 
           <div className="stat-card">
+
             <div className="stat-icon">
               🧑‍🤝‍🧑
             </div>
 
             <div>
-              <span>Total Members</span>
+
+              <span>
+                Total Members
+              </span>
 
               <h2>
-                {loading ? "..." : totalMembers}
+                {loading
+                  ? "..."
+                  : totalMembers}
               </h2>
+
             </div>
+
           </div>
 
 
           <div className="stat-card">
+
             <div className="stat-icon">
               📊
             </div>
 
             <div>
-              <span>Expense Groups</span>
+
+              <span>
+                Expense Groups
+              </span>
 
               <h2>
-                {loading ? "..." : groups.length}
+                {loading
+                  ? "..."
+                  : groups.length}
               </h2>
+
             </div>
+
           </div>
+
 
         </section>
 
 
+        {/* ==================== FORMS ==================== */}
+
         <div className="form-grid">
+
+
+          {/* ==================== CREATE GROUP ==================== */}
 
           <section className="form-card">
 
@@ -243,14 +382,20 @@ function Groups() {
               ➕
             </div>
 
-            <h2>Create New Group</h2>
+            <h2>
+              Create New Group
+            </h2>
 
             <p>
               Create a group for friends, roommates,
               college expenses, or trips.
             </p>
 
-            <form onSubmit={handleCreateGroup}>
+            <form
+              onSubmit={
+                handleCreateGroup
+              }
+            >
 
               <label>
                 Group Name
@@ -261,13 +406,17 @@ function Groups() {
                 placeholder="Example: Goa Trip"
                 value={groupName}
                 onChange={(e) =>
-                  setGroupName(e.target.value)
+                  setGroupName(
+                    e.target.value
+                  )
                 }
               />
 
               <button
                 type="submit"
-                disabled={creatingGroup}
+                disabled={
+                  creatingGroup
+                }
               >
                 {creatingGroup
                   ? "Creating..."
@@ -279,43 +428,61 @@ function Groups() {
           </section>
 
 
+          {/* ==================== ADD MEMBER ==================== */}
+
           <section className="form-card">
 
             <div className="group-form-icon">
               👤
             </div>
 
-            <h2>Add Member</h2>
+            <h2>
+              Add Member
+            </h2>
 
             <p>
               Add an existing DueEase user to one
               of your groups.
             </p>
 
-            <form onSubmit={handleAddMember}>
+            <form
+              onSubmit={
+                handleAddMember
+              }
+            >
 
               <label>
                 Select Group
               </label>
 
               <select
-                value={selectedGroup}
+                value={
+                  selectedGroup
+                }
                 onChange={(e) =>
-                  setSelectedGroup(e.target.value)
+                  setSelectedGroup(
+                    e.target.value
+                  )
                 }
               >
+
                 <option value="">
                   Select a group
                 </option>
 
-                {groups.map((group) => (
-                  <option
-                    key={group._id}
-                    value={group._id}
-                  >
-                    {group.name}
-                  </option>
-                ))}
+                {groups.map(
+                  (group) => (
+
+                    <option
+                      key={group._id}
+                      value={group._id}
+                    >
+                      {group.name}
+                    </option>
+
+                  )
+                )}
+
               </select>
 
 
@@ -328,13 +495,17 @@ function Groups() {
                 placeholder="Enter member email"
                 value={memberEmail}
                 onChange={(e) =>
-                  setMemberEmail(e.target.value)
+                  setMemberEmail(
+                    e.target.value
+                  )
                 }
               />
 
               <button
                 type="submit"
-                disabled={addingMember}
+                disabled={
+                  addingMember
+                }
               >
                 {addingMember
                   ? "Adding..."
@@ -345,31 +516,44 @@ function Groups() {
 
           </section>
 
+
         </div>
 
 
+        {/* ==================== GROUPS ==================== */}
+
         <section className="groups-section">
+
 
           <div className="section-title">
 
             <div>
-              <h2>Your Groups</h2>
+
+              <h2>
+                Your Groups
+              </h2>
 
               <p>
                 View members and manage your expense
                 groups.
               </p>
+
             </div>
 
             <span>
+
               {groups.length}{" "}
+
               {groups.length === 1
                 ? "Group"
                 : "Groups"}
+
             </span>
 
           </div>
 
+
+          {/* ==================== LOADING ==================== */}
 
           {loading ? (
 
@@ -386,7 +570,11 @@ function Groups() {
 
             </div>
 
+
           ) : groups.length === 0 ? (
+
+
+            /* ==================== EMPTY ==================== */
 
             <div className="empty-state">
 
@@ -405,116 +593,143 @@ function Groups() {
 
             </div>
 
+
           ) : (
+
+
+            /* ==================== GROUP GRID ==================== */
 
             <div className="groups-grid">
 
-              {groups.map((group) => (
+              {groups.map(
+                (group) => (
 
-                <div
-                  className="group-card"
-                  key={group._id}
-                >
+                  <div
+                    className="group-card"
+                    key={group._id}
+                  >
 
-                  <div className="group-card-header">
 
-                    <div className="group-title-area">
+                    <div className="group-card-header">
 
-                      <div className="group-large-icon">
-                        👥
-                      </div>
+                      <div className="group-title-area">
 
-                      <div>
+                        <div className="group-large-icon">
+                          👥
+                        </div>
 
-                        <h3>
-                          {group.name}
-                        </h3>
+                        <div>
 
-                        <p>
-                          {group.members?.length || 0}{" "}
-                          {group.members?.length === 1
-                            ? "member"
-                            : "members"}
-                        </p>
+                          <h3>
+                            {group.name}
+                          </h3>
+
+                          <p>
+
+                            {group.members?.length ||
+                              0}{" "}
+
+                            {group.members?.length ===
+                            1
+                              ? "member"
+                              : "members"}
+
+                          </p>
+
+                        </div>
 
                       </div>
 
                     </div>
 
+
+                    <div className="group-member-summary">
+
+                      <span>
+                        Members
+                      </span>
+
+                      <strong>
+                        {group.members?.length ||
+                          0}
+                      </strong>
+
+                    </div>
+
+
+                    <div className="group-members-container">
+
+                      <h4>
+                        Group Members
+                      </h4>
+
+
+                      {group.members &&
+                      group.members.length >
+                        0 ? (
+
+                        <ul className="member-list">
+
+                          {group.members.map(
+                            (member) => (
+
+                              <li
+                                key={
+                                  member._id
+                                }
+                              >
+
+                                <div className="member-avatar">
+
+                                  {member.name
+                                    ? member.name
+                                        .charAt(
+                                          0
+                                        )
+                                        .toUpperCase()
+                                    : "U"}
+
+                                </div>
+
+
+                                <div className="member-info">
+
+                                  <strong>
+                                    {
+                                      member.name
+                                    }
+                                  </strong>
+
+                                  <small>
+                                    {
+                                      member.email
+                                    }
+                                  </small>
+
+                                </div>
+
+                              </li>
+
+                            )
+                          )}
+
+                        </ul>
+
+                      ) : (
+
+                        <div className="no-members">
+                          No members found.
+                        </div>
+
+                      )}
+
+                    </div>
+
+
                   </div>
 
-
-                  <div className="group-member-summary">
-
-                    <span>
-                      Members
-                    </span>
-
-                    <strong>
-                      {group.members?.length || 0}
-                    </strong>
-
-                  </div>
-
-
-                  <div className="group-members-container">
-
-                    <h4>
-                      Group Members
-                    </h4>
-
-                    {group.members &&
-                    group.members.length > 0 ? (
-
-                      <ul className="member-list">
-
-                        {group.members.map(
-                          (member) => (
-
-                            <li
-                              key={member._id}
-                            >
-
-                              <div className="member-avatar">
-                                {member.name
-                                  ? member.name
-                                      .charAt(0)
-                                      .toUpperCase()
-                                  : "U"}
-                              </div>
-
-                              <div className="member-info">
-
-                                <strong>
-                                  {member.name}
-                                </strong>
-
-                                <small>
-                                  {member.email}
-                                </small>
-
-                              </div>
-
-                            </li>
-
-                          )
-                        )}
-
-                      </ul>
-
-                    ) : (
-
-                      <div className="no-members">
-                        No members found.
-                      </div>
-
-                    )}
-
-                  </div>
-
-                </div>
-
-              ))}
+                )
+              )}
 
             </div>
 
@@ -522,6 +737,8 @@ function Groups() {
 
         </section>
 
+
+        {/* ==================== HIGHLIGHT ==================== */}
 
         <section className="dashboard-highlight">
 
@@ -546,7 +763,9 @@ function Groups() {
 
         </section>
 
+
       </main>
+
     </div>
   );
 }

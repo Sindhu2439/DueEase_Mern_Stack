@@ -31,6 +31,10 @@ const io = new Server(server, {
 });
 
 
+// Make Socket.IO available to routes
+app.set("io", io);
+
+
 // ==================== MIDDLEWARE ====================
 
 app.use(cors());
@@ -67,6 +71,7 @@ io.on("connection", (socket) => {
 
     console.log("User connected:", socket.id);
 
+
     // Join a specific group room
     socket.on("joinGroup", (groupId) => {
 
@@ -74,6 +79,7 @@ io.on("connection", (socket) => {
 
         console.log(`User joined group: ${groupId}`);
     });
+
 
     // User disconnected
     socket.on("disconnect", () => {

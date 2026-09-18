@@ -1,18 +1,23 @@
 const express = require("express");
-const router = express.Router();
-
 const Expense = require("../models/Expense");
 const Group = require("../models/Group");
-
+const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 
 const simplifyDebts = require("../utils/settlement");
 const calculateShares = require("../utils/splitCalculator");
 
+const router = express.Router();
 
-// =====================================================
-// CREATE EXPENSE
-// =====================================================
+
+// ==================== SOCKET HELPER ====================
+
+const getIO = (req) => {
+    return req.app.get("io");
+};
+
+
+// ==================== CREATE EXPENSE ====================
 
 router.post("/", authMiddleware, async (req, res) => {
     try {
@@ -25,17 +30,28 @@ router.post("/", authMiddleware, async (req, res) => {
             splits
         } = req.body;
 
-        const selectedGroup = await Group.findById(group);
+        if (
+            !group ||
+            !description ||
+            amount === undefined ||
+            !paidBy
+        ) {
+            return res.status(400).json({
+                message: "Please provide all required fields"
+            });
+        }
 
-        if (!selectedGroup) {
+        const groupData = await Group.findById(group);
+
+        if (!groupData) {
             return res.status(404).json({
                 message: "Group not found"
             });
         }
 
-        const isMember = selectedGroup.members.some(
-            member =>
-                member.toString() === req.user.id
+        const isMember = groupData.members.some(
+            memberId =>
+                memberId.toString() === req.userId
         );
 
         if (!isMember) {
@@ -44,27 +60,51 @@ router.post("/", authMiddleware, async (req, res) => {
             });
         }
 
-        const payerIsMember = selectedGroup.members.some(
-            member =>
-                member.toString() === paidBy
+        const isPayerMember = groupData.members.some(
+            memberId =>
+                memberId.toString() === paidBy.toString()
         );
 
-        if (!payerIsMember) {
+        if (!isPayerMember) {
             return res.status(400).json({
                 message: "Payer must be a group member"
             });
         }
 
-        // Validate exact split
-        if (splitType === "exact") {
+        if (Number(amount) <= 0) {
+            return res.status(400).json({
+                message: "Amount must be greater than 0"
+            });
+        }
 
-            const total = (splits || []).reduce(
-                (sum, split) =>
-                    sum + Number(split.amount || 0),
+        if (
+            splitType === "exact" ||
+            splitType === "percentage"
+        ) {
+            if (
+                !Array.isArray(splits) ||
+                splits.length === 0
+            ) {
+                return res.status(400).json({
+                    message: "Please provide split details"
+                });
+            }
+        }
+
+        // ==================== EXACT VALIDATION ====================
+
+        if (splitType === "exact") {
+            const totalSplit = splits.reduce(
+                (total, split) =>
+                    total + Number(split.amount || 0),
                 0
             );
 
-            if (Math.abs(total - Number(amount)) > 0.01) {
+            if (
+                Math.abs(
+                    totalSplit - Number(amount)
+                ) > 0.01
+            ) {
                 return res.status(400).json({
                     message:
                         "Exact split amounts must equal the total expense"
@@ -72,19 +112,24 @@ router.post("/", authMiddleware, async (req, res) => {
             }
         }
 
-        // Validate percentage split
-        if (splitType === "percentage") {
+        // ==================== PERCENTAGE VALIDATION ====================
 
-            const totalPercentage = (splits || []).reduce(
-                (sum, split) =>
-                    sum + Number(split.percentage || 0),
+        if (splitType === "percentage") {
+            const totalPercentage = splits.reduce(
+                (total, split) =>
+                    total +
+                    Number(split.percentage || 0),
                 0
             );
 
-            if (Math.abs(totalPercentage - 100) > 0.01) {
+            if (
+                Math.abs(
+                    totalPercentage - 100
+                ) > 0.01
+            ) {
                 return res.status(400).json({
                     message:
-                        "Percentage splits must total 100%"
+                        "Percentage split must total 100%"
                 });
             }
         }
@@ -92,59 +137,79 @@ router.post("/", authMiddleware, async (req, res) => {
         const expense = new Expense({
             group,
             description,
-            amount,
+            amount: Number(amount),
             paidBy,
             splitType: splitType || "equal",
-            splits: splits || []
+            splits
         });
 
         await expense.save();
 
+        const populatedExpense =
+            await Expense.findById(expense._id)
+                .populate(
+                    "paidBy",
+                    "name email upiId"
+                )
+                .populate(
+                    "splits.user",
+                    "name email upiId"
+                );
+
+        const io = getIO(req);
+
+        if (io) {
+            io.to(group.toString()).emit(
+                "expenseAdded",
+                {
+                    message:
+                        "A new expense was added",
+                    expense: populatedExpense
+                }
+            );
+        }
+
         res.status(201).json({
-            message: "Expense created successfully",
-            expense
+            message:
+                "Expense created successfully",
+            expense: populatedExpense
         });
 
     } catch (error) {
-
-        console.error(error);
-
         res.status(500).json({
             message:
-                "Server error while creating expense"
+                "Failed to create expense",
+            error: error.message
         });
     }
 });
 
 
-// =====================================================
-// GET GROUP EXPENSES
-// =====================================================
+// ==================== GET GROUP EXPENSES ====================
 
 router.get(
     "/group/:groupId",
     authMiddleware,
     async (req, res) => {
-
         try {
+            const { groupId } = req.params;
 
-            const group = await Group.findById(
-                req.params.groupId
-            ).populate(
-                "members",
-                "name email"
-            );
+            const group =
+                await Group.findById(groupId);
 
             if (!group) {
                 return res.status(404).json({
-                    message: "Group not found"
+                    message:
+                        "Group not found"
                 });
             }
 
-            const isMember = group.members.some(
-                member =>
-                    member._id.toString() === req.user.id
-            );
+            const isMember =
+                group.members.some(
+                    memberId =>
+                        memberId.toString() ===
+                        req.userId
+                );
 
             if (!isMember) {
                 return res.status(403).json({
@@ -153,67 +218,76 @@ router.get(
                 });
             }
 
-            const expenses = await Expense.find({
-                group: req.params.groupId
-            })
-                .populate("paidBy", "name email")
-                .populate("splits.user", "name email")
-                .sort({
-                    createdAt: -1
-                });
+            const expenses =
+                await Expense.find({
+                    group: groupId
+                })
+                    .populate(
+                        "paidBy",
+                        "name email upiId"
+                    )
+                    .populate(
+                        "splits.user",
+                        "name email upiId"
+                    )
+                    .sort({
+                        createdAt: -1
+                    });
 
-            res.json({
+            res.status(200).json({
+                message:
+                    "Expenses fetched successfully",
                 expenses
             });
 
         } catch (error) {
-
-            console.error(error);
-
             res.status(500).json({
                 message:
-                    "Server error while fetching expenses"
+                    "Failed to fetch expenses",
+                error: error.message
             });
         }
     }
 );
 
 
-// =====================================================
-// DELETE EXPENSE
-// =====================================================
+// ==================== DELETE EXPENSE ====================
 
 router.delete(
     "/:expenseId",
     authMiddleware,
     async (req, res) => {
-
         try {
-
-            const expense = await Expense.findById(
-                req.params.expenseId
-            );
+            const expense =
+                await Expense.findById(
+                    req.params.expenseId
+                );
 
             if (!expense) {
                 return res.status(404).json({
-                    message: "Expense not found"
+                    message:
+                        "Expense not found"
                 });
             }
 
-            const group = await Group.findById(
-                expense.group
-            );
+            const group =
+                await Group.findById(
+                    expense.group
+                );
 
             if (!group) {
                 return res.status(404).json({
-                    message: "Group not found"
+                    message:
+                        "Group not found"
                 });
             }
 
-            const isMember = group.members.some(
-                member =>
-                    member.toString() === req.user.id
-            );
+            const isMember =
+                group.members.some(
+                    memberId =>
+                        memberId.toString() ===
+                        req.userId
+                );
 
             if (!isMember) {
                 return res.status(403).json({
@@ -226,52 +300,68 @@ router.delete(
                 req.params.expenseId
             );
 
-            res.json({
+            const groupId =
+                expense.group.toString();
+
+            const io = getIO(req);
+
+            if (io) {
+                io.to(groupId).emit(
+                    "expenseDeleted",
+                    {
+                        message:
+                            "An expense was deleted",
+                        expenseId:
+                            req.params.expenseId
+                    }
+                );
+            }
+
+            res.status(200).json({
                 message:
                     "Expense deleted successfully"
             });
 
         } catch (error) {
-
-            console.error(error);
-
             res.status(500).json({
                 message:
-                    "Unable to delete expense"
+                    "Failed to delete expense",
+                error: error.message
             });
         }
     }
 );
 
 
-// =====================================================
-// GET GROUP BALANCES
-// =====================================================
+// ==================== BALANCES ====================
 
 router.get(
     "/group/:groupId/balances",
     authMiddleware,
     async (req, res) => {
-
         try {
+            const { groupId } = req.params;
 
-            const group = await Group.findById(
-                req.params.groupId
-            ).populate(
-                "members",
-                "name email"
-            );
+            const group =
+                await Group.findById(groupId)
+                    .populate(
+                        "members",
+                        "name email upiId"
+                    );
 
             if (!group) {
                 return res.status(404).json({
-                    message: "Group not found"
+                    message:
+                        "Group not found"
                 });
             }
 
-            const isMember = group.members.some(
-                member =>
-                    member._id.toString() === req.user.id
-            );
+            const isMember =
+                group.members.some(
+                    member =>
+                        member._id.toString() ===
+                        req.userId
+                );
 
             if (!isMember) {
                 return res.status(403).json({
@@ -280,106 +370,102 @@ router.get(
                 });
             }
 
-            const expenses = await Expense.find({
-                group: req.params.groupId
-            });
+            const expenses =
+                await Expense.find({
+                    group: groupId
+                });
 
             const balances = {};
 
             group.members.forEach(member => {
-
-                balances[member._id.toString()] = {
-                    user: member.name,
-                    email: member.email,
-                    balance: 0
-                };
-
+                balances[
+                    member._id.toString()
+                ] = 0;
             });
 
             expenses.forEach(expense => {
-
-                const payerId =
-                    expense.paidBy.toString();
-
-                balances[payerId].balance +=
-                    Number(expense.amount);
-
                 const shares =
                     calculateShares(
                         expense,
                         group.members
                     );
 
-                Object.keys(shares).forEach(userId => {
+                const payerId =
+                    expense.paidBy.toString();
 
-                    if (balances[userId]) {
+                balances[payerId] +=
+                    Number(expense.amount);
 
-                        balances[userId].balance -=
-                            Number(shares[userId]);
-
+                Object.keys(shares).forEach(
+                    userId => {
+                        balances[userId] -=
+                            Number(
+                                shares[userId] || 0
+                            );
                     }
-
-                });
-
+                );
             });
 
-            const result = Object.keys(balances).map(
-                userId => ({
-                    user: balances[userId].user,
-                    email: balances[userId].email,
-                    balance: Number(
-                        balances[userId].balance.toFixed(2)
-                    )
-                })
-            );
+            const balanceList =
+                group.members.map(member => ({
+                    user: member.name,
+                    email: member.email,
+                    upiId:
+                        member.upiId || "",
+                    balance:
+                        Number(
+                            balances[
+                                member._id.toString()
+                            ].toFixed(2)
+                        )
+                }));
 
-            res.json({
+            res.status(200).json({
                 message:
                     "Balances calculated successfully",
-                balances: result
+                balances: balanceList
             });
 
         } catch (error) {
-
-            console.error(error);
-
             res.status(500).json({
                 message:
-                    "Server error while calculating balances"
+                    "Failed to calculate balances",
+                error: error.message
             });
         }
     }
 );
 
 
-// =====================================================
-// GET SETTLEMENTS
-// =====================================================
+// ==================== SETTLEMENTS ====================
 
 router.get(
     "/group/:groupId/settlements",
     authMiddleware,
     async (req, res) => {
-
         try {
+            const { groupId } = req.params;
 
-            const group = await Group.findById(
-                req.params.groupId
-            ).populate(
-                "members",
-                "name email"
-            );
+            const group =
+                await Group.findById(groupId)
+                    .populate(
+                        "members",
+                        "name email upiId"
+                    );
 
             if (!group) {
                 return res.status(404).json({
-                    message: "Group not found"
+                    message:
+                        "Group not found"
                 });
             }
 
-            const isMember = group.members.some(
-                member =>
-                    member._id.toString() === req.user.id
-            );
+            const isMember =
+                group.members.some(
+                    member =>
+                        member._id.toString() ===
+                        req.userId
+                );
 
             if (!isMember) {
                 return res.status(403).json({
@@ -388,110 +474,106 @@ router.get(
                 });
             }
 
-            const expenses = await Expense.find({
-                group: req.params.groupId
-            });
+            const expenses =
+                await Expense.find({
+                    group: groupId
+                });
 
             const balances = {};
 
             group.members.forEach(member => {
-
-                balances[member._id.toString()] = {
-                    user: member.name,
-                    email: member.email,
-                    balance: 0
-                };
-
+                balances[
+                    member._id.toString()
+                ] = 0;
             });
 
             expenses.forEach(expense => {
-
-                const payerId =
-                    expense.paidBy.toString();
-
-                balances[payerId].balance +=
-                    Number(expense.amount);
-
                 const shares =
                     calculateShares(
                         expense,
                         group.members
                     );
 
-                Object.keys(shares).forEach(userId => {
+                const payerId =
+                    expense.paidBy.toString();
 
-                    if (balances[userId]) {
+                balances[payerId] +=
+                    Number(expense.amount);
 
-                        balances[userId].balance -=
-                            Number(shares[userId]);
-
+                Object.keys(shares).forEach(
+                    userId => {
+                        balances[userId] -=
+                            Number(
+                                shares[userId] || 0
+                            );
                     }
-
-                });
-
+                );
             });
 
-            const balanceArray = Object.keys(
-                balances
-            ).map(userId => ({
-                user: balances[userId].user,
-                email: balances[userId].email,
-                balance: Number(
-                    balances[userId].balance.toFixed(2)
-                )
-            }));
+            const balanceList =
+                group.members.map(member => ({
+                    user: member._id,
+                    name: member.name,
+                    email: member.email,
+                    upiId:
+                        member.upiId || "",
+                    balance:
+                        Number(
+                            balances[
+                                member._id.toString()
+                            ].toFixed(2)
+                        )
+                }));
 
             const settlements =
-                simplifyDebts(balanceArray);
+                simplifyDebts(balanceList);
 
-            res.json({
+            res.status(200).json({
                 message:
                     "Settlements calculated successfully",
                 settlements
             });
 
         } catch (error) {
-
-            console.error(error);
-
             res.status(500).json({
                 message:
-                    "Server error while calculating settlements"
+                    "Failed to calculate settlements",
+                error: error.message
             });
         }
     }
 );
 
 
-// =====================================================
-// EXPENSE ANALYTICS
-// =====================================================
+// ==================== ANALYTICS ====================
 
 router.get(
     "/group/:groupId/analytics",
     authMiddleware,
     async (req, res) => {
-
         try {
+            const { groupId } = req.params;
 
-            const group = await Group.findById(
-                req.params.groupId
-            ).populate(
-                "members",
-                "name email"
-            );
+            const group =
+                await Group.findById(groupId)
+                    .populate(
+                        "members",
+                        "name email upiId"
+                    );
 
             if (!group) {
                 return res.status(404).json({
-                    message: "Group not found"
+                    message:
+                        "Group not found"
                 });
             }
 
-            // Check whether logged-in user belongs to group
-            const isMember = group.members.some(
-                member =>
-                    member._id.toString() === req.user.id
-            );
+            const isMember =
+                group.members.some(
+                    member =>
+                        member._id.toString() ===
+                        req.userId
+                );
 
             if (!isMember) {
                 return res.status(403).json({
@@ -500,102 +582,195 @@ router.get(
                 });
             }
 
-            // Get all expenses
-            const expenses = await Expense.find({
-                group: req.params.groupId
-            })
-                .populate("paidBy", "name email")
-                .sort({
-                    createdAt: 1
-                });
+            const expenses =
+                await Expense.find({
+                    group: groupId
+                })
+                    .populate(
+                        "paidBy",
+                        "name email upiId"
+                    )
+                    .populate(
+                        "splits.user",
+                        "name email upiId"
+                    )
+                    .sort({
+                        createdAt: 1
+                    });
 
 
-            // -------------------------------------------------
+            // =========================
             // TOTAL SPENDING
-            // -------------------------------------------------
+            // =========================
 
-            const totalSpending = expenses.reduce(
-                (sum, expense) =>
-                    sum + Number(expense.amount),
-                0
-            );
-
-
-            // -------------------------------------------------
-            // NUMBER OF EXPENSES
-            // -------------------------------------------------
-
-            const totalExpenses =
-                expenses.length;
+            const totalSpending =
+                expenses.reduce(
+                    (total, expense) =>
+                        total +
+                        Number(
+                            expense.amount || 0
+                        ),
+                    0
+                );
 
 
-            // -------------------------------------------------
-            // AMOUNT PAID BY EACH MEMBER
-            // -------------------------------------------------
+            // =========================
+            // AVERAGE EXPENSE
+            // =========================
+
+            const averageExpense =
+                expenses.length > 0
+                    ? totalSpending /
+                      expenses.length
+                    : 0;
+
+
+            // =========================
+            // PAID BY MEMBER
+            // =========================
 
             const paidByMember = {};
 
             group.members.forEach(member => {
 
-                paidByMember[member._id.toString()] = {
-                    userId: member._id,
-                    name: member.name,
-                    email: member.email,
+                paidByMember[
+                    member._id.toString()
+                ] = {
+                    userId:
+                        member._id.toString(),
+
+                    name:
+                        member.name || "User",
+
+                    email:
+                        member.email || "",
+
                     amount: 0
                 };
 
             });
 
+
             expenses.forEach(expense => {
+
+                if (!expense.paidBy) {
+                    return;
+                }
 
                 const payerId =
                     expense.paidBy._id.toString();
 
-                if (paidByMember[payerId]) {
-
-                    paidByMember[payerId].amount +=
-                        Number(expense.amount);
-
+                if (
+                    paidByMember[payerId]
+                ) {
+                    paidByMember[
+                        payerId
+                    ].amount +=
+                        Number(
+                            expense.amount || 0
+                        );
                 }
 
             });
 
 
-            const paidByMemberResult =
-                Object.values(paidByMember).map(
-                    person => ({
-                        ...person,
-                        amount: Number(
-                            person.amount.toFixed(2)
+            const paidByMemberList =
+                Object.values(
+                    paidByMember
+                ).map(member => ({
+                    userId:
+                        member.userId,
+
+                    name:
+                        member.name,
+
+                    email:
+                        member.email,
+
+                    amount:
+                        Number(
+                            member.amount.toFixed(2)
                         )
-                    })
-                );
+                }));
 
 
-            // -------------------------------------------------
-            // YOUR TOTAL PAID
-            // -------------------------------------------------
+            // =========================
+            // EXPENSE DISTRIBUTION
+            // =========================
+
+            const spendingByExpense =
+                expenses.map(expense => ({
+                    id:
+                        expense._id.toString(),
+
+                    description:
+                        expense.description ||
+                        "Expense",
+
+                    amount:
+                        Number(
+                            expense.amount || 0
+                        ),
+
+                    paidBy:
+                        expense.paidBy
+                            ? expense.paidBy.name
+                            : "User"
+                }));
+
+
+            // =========================
+            // SPLIT TYPE DISTRIBUTION
+            // =========================
+
+            const expenseDistribution = {
+                equal: 0,
+                exact: 0,
+                percentage: 0
+            };
+
+            expenses.forEach(expense => {
+
+                const type =
+                    expense.splitType ||
+                    "equal";
+
+                if (
+                    expenseDistribution[type]
+                    !== undefined
+                ) {
+                    expenseDistribution[type] += 1;
+                }
+
+            });
+
+
+            // =========================
+            // CURRENT USER PAID AMOUNT
+            // =========================
 
             let yourPaidAmount = 0;
 
             expenses.forEach(expense => {
 
                 if (
-                    expense.paidBy._id.toString() ===
-                    req.user.id
+                    expense.paidBy &&
+                    expense.paidBy._id
+                        .toString() ===
+                        req.userId
                 ) {
-
                     yourPaidAmount +=
-                        Number(expense.amount);
-
+                        Number(
+                            expense.amount || 0
+                        );
                 }
 
             });
 
 
-            // -------------------------------------------------
-            // YOUR SHARE
-            // -------------------------------------------------
+            // =========================
+            // CURRENT USER SHARE
+            // =========================
 
             let yourShare = 0;
 
@@ -607,109 +782,127 @@ router.get(
                         group.members
                     );
 
-                if (shares[req.user.id]) {
-
+                if (
+                    shares &&
+                    shares[req.userId]
+                ) {
                     yourShare +=
-                        Number(shares[req.user.id]);
-
+                        Number(
+                            shares[req.userId]
+                        );
                 }
 
             });
 
 
-            // -------------------------------------------------
-            // SPENDING BY EXPENSE
-            // -------------------------------------------------
-
-            const spendingByExpense =
-                expenses.map(expense => ({
-                    description:
-                        expense.description,
-
-                    amount:
-                        Number(expense.amount),
-
-                    paidBy:
-                        expense.paidBy.name,
-
-                    date:
-                        expense.createdAt
-                }));
-
-
-            // -------------------------------------------------
+            // =========================
             // MONTHLY SPENDING
-            // -------------------------------------------------
+            // =========================
 
             const monthlySpending = {};
 
             expenses.forEach(expense => {
 
                 const date =
-                    new Date(expense.createdAt);
+                    new Date(
+                        expense.createdAt
+                    );
 
                 const month =
-                    `${date.getFullYear()}-${String(
-                        date.getMonth() + 1
-                    ).padStart(2, "0")}`;
+                    date.toLocaleString(
+                        "en-US",
+                        {
+                            month: "short",
+                            year: "numeric"
+                        }
+                    );
 
-                if (!monthlySpending[month]) {
+                if (
+                    !monthlySpending[month]
+                ) {
                     monthlySpending[month] = 0;
                 }
 
                 monthlySpending[month] +=
-                    Number(expense.amount);
+                    Number(
+                        expense.amount || 0
+                    );
 
             });
 
-            const monthlySpendingResult =
-                Object.keys(monthlySpending)
-                    .sort()
-                    .map(month => ({
+
+            const monthlyData =
+                Object.entries(
+                    monthlySpending
+                ).map(
+                    ([month, amount]) => ({
                         month,
-                        amount: Number(
-                            monthlySpending[month].toFixed(2)
-                        )
-                    }));
+                        amount:
+                            Number(
+                                amount.toFixed(2)
+                            )
+                    })
+                );
 
 
-            // -------------------------------------------------
+            // =========================
             // FINAL RESPONSE
-            // -------------------------------------------------
+            // =========================
 
-            res.json({
+            res.status(200).json({
 
                 message:
-                    "Analytics calculated successfully",
+                    "Analytics fetched successfully",
 
                 totalSpending:
-                    Number(totalSpending.toFixed(2)),
+                    Number(
+                        totalSpending.toFixed(2)
+                    ),
 
-                totalExpenses,
+                totalExpenses:
+                    expenses.length,
+
+                averageExpense:
+                    Number(
+                        averageExpense.toFixed(2)
+                    ),
 
                 yourPaidAmount:
-                    Number(yourPaidAmount.toFixed(2)),
+                    Number(
+                        yourPaidAmount.toFixed(2)
+                    ),
 
                 yourShare:
-                    Number(yourShare.toFixed(2)),
+                    Number(
+                        yourShare.toFixed(2)
+                    ),
 
                 paidByMember:
-                    paidByMemberResult,
+                    paidByMemberList,
 
-                spendingByExpense,
+                spendingByExpense:
+                    spendingByExpense,
+
+                expenseDistribution:
+                    expenseDistribution,
 
                 monthlySpending:
-                    monthlySpendingResult
-
+                    monthlyData
             });
 
         } catch (error) {
 
-            console.error(error);
+            console.error(
+                "Analytics Error:",
+                error
+            );
 
             res.status(500).json({
                 message:
-                    "Server error while calculating analytics"
+                    "Failed to fetch analytics",
+
+                error:
+                    error.message
             });
         }
     }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import Navbar from "../Navbar";
 import socket from "../socket";
+import API_BASE_URL from "../config";
 
 function Balances() {
   const [groups, setGroups] = useState([]);
@@ -13,11 +15,11 @@ function Balances() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/groups",
+        `${API_BASE_URL}/api/groups`,
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -26,11 +28,11 @@ function Balances() {
       if (response.ok) {
         setGroups(data.groups || data);
       } else {
-        alert(data.message || "Unable to load groups");
+        toast.error(data.message || "Unable to load groups");
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server");
+      toast.error("Unable to connect to server");
     }
   };
 
@@ -46,11 +48,11 @@ function Balances() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:5000/api/expenses/group/${groupId}/balances`,
+        `${API_BASE_URL}/api/expenses/group/${groupId}/balances`,
         {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         }
       );
 
@@ -59,13 +61,13 @@ function Balances() {
       if (response.ok) {
         setBalances(data.balances || []);
       } else {
-        alert(
+        toast.error(
           data.message || "Unable to calculate balances"
         );
       }
     } catch (error) {
       console.error(error);
-      alert("Unable to connect to server");
+      toast.error("Unable to connect to server");
     } finally {
       setLoading(false);
     }
@@ -85,9 +87,14 @@ function Balances() {
       }
     };
 
-    const handleExpenseDeleted = () => {
-      if (selectedGroup) {
-        fetchBalances(selectedGroup);
+    const handleExpenseDeleted = (data) => {
+      if (
+        !data?.expense?.group ||
+        data.expense.group.toString() === selectedGroup
+      ) {
+        if (selectedGroup) {
+          fetchBalances(selectedGroup);
+        }
       }
     };
 
@@ -168,15 +175,23 @@ function Balances() {
           </p>
         </div>
 
-        {/* Select Group */}
+        {/* Group Selection */}
 
-        <section className="form-card">
-          <h2>Select Group</h2>
+        <section className="form-card balance-selector-card">
+          <div className="section-title">
+            <div>
+              <h2>Select Group</h2>
 
-          <p>
-            Choose a group to calculate the latest
-            balances.
-          </p>
+              <p>
+                Choose a group to calculate the latest
+                balances.
+              </p>
+            </div>
+
+            <span className="balance-live-badge">
+              ● Live
+            </span>
+          </div>
 
           <select
             value={selectedGroup}
@@ -197,13 +212,30 @@ function Balances() {
           </select>
         </section>
 
+        {!selectedGroup && (
+          <section className="balance-welcome">
+            <div className="balance-welcome-icon">
+              💰
+            </div>
+
+            <h2>
+              Track your group balances
+            </h2>
+
+            <p>
+              Select a group above to see who needs
+              to pay and who should receive money.
+            </p>
+          </section>
+        )}
+
         {selectedGroup && (
           <>
             {/* Summary */}
 
             <section className="balance-summary">
 
-              <div className="balance-summary-card">
+              <div className="balance-summary-card balance-receive-summary">
                 <span className="balance-summary-icon">
                   💚
                 </span>
@@ -214,10 +246,14 @@ function Balances() {
                   <h2>
                     ₹{totalReceivable.toFixed(2)}
                   </h2>
+
+                  <small>
+                    Money coming to you
+                  </small>
                 </div>
               </div>
 
-              <div className="balance-summary-card">
+              <div className="balance-summary-card balance-pay-summary">
                 <span className="balance-summary-icon">
                   🔴
                 </span>
@@ -228,10 +264,14 @@ function Balances() {
                   <h2>
                     ₹{totalPayable.toFixed(2)}
                   </h2>
+
+                  <small>
+                    Your outstanding amount
+                  </small>
                 </div>
               </div>
 
-              <div className="balance-summary-card">
+              <div className="balance-summary-card balance-settled-summary">
                 <span className="balance-summary-icon">
                   ⚪
                 </span>
@@ -242,6 +282,10 @@ function Balances() {
                   <h2>
                     {settledCount}
                   </h2>
+
+                  <small>
+                    No outstanding balance
+                  </small>
                 </div>
               </div>
 
@@ -264,14 +308,21 @@ function Balances() {
                   </p>
                 </div>
 
-                <span>
-                  {balances.length} Members
+                <span className="member-count-badge">
+                  {balances.length}{" "}
+                  {balances.length === 1
+                    ? "Member"
+                    : "Members"}
                 </span>
 
               </div>
 
               {loading ? (
-                <div className="empty-state">
+                <div className="empty-state balance-loading-state">
+                  <div className="balance-loader">
+                    ⟳
+                  </div>
+
                   <h3>
                     Calculating balances...
                   </h3>
@@ -283,6 +334,10 @@ function Balances() {
                 </div>
               ) : balances.length === 0 ? (
                 <div className="empty-state">
+                  <div className="balance-empty-icon">
+                    📊
+                  </div>
+
                   <h3>
                     No balance data
                   </h3>
@@ -301,9 +356,7 @@ function Balances() {
                       Number(person.balance);
 
                     const status =
-                      getBalanceStatus(
-                        balance
-                      );
+                      getBalanceStatus(balance);
 
                     return (
                       <div
@@ -399,9 +452,22 @@ function Balances() {
 
             <section className="balance-info">
 
-              <h2>
-                How to read your balance
-              </h2>
+              <div className="balance-info-header">
+                <span className="balance-info-icon">
+                  💡
+                </span>
+
+                <div>
+                  <h2>
+                    How to read your balance
+                  </h2>
+
+                  <p>
+                    Understand what each balance
+                    status means.
+                  </p>
+                </div>
+              </div>
 
               <div className="balance-info-grid">
 

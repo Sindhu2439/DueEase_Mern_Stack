@@ -26,6 +26,16 @@ router.post("/", authMiddleware, async (req, res) => {
 
         await group.save();
 
+        // Real-time group update
+        const io = req.app.get("io");
+
+        if (io) {
+            io.emit("groupUpdated", {
+                message: "A new group was created",
+                groupId: group._id
+            });
+        }
+
         res.status(201).json({
             message: "Group created successfully",
             group: group
@@ -120,6 +130,16 @@ router.post("/:groupId/members", authMiddleware, async (req, res) => {
         group.members.push(user._id);
 
         await group.save();
+
+        // Real-time group update
+        const io = req.app.get("io");
+
+        if (io) {
+            io.emit("groupUpdated", {
+                message: "A new member was added to a group",
+                groupId: group._id
+            });
+        }
 
         res.status(200).json({
             message: "Member added successfully",

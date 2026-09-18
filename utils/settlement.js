@@ -1,11 +1,7 @@
-// ==================== DEBT SIMPLIFICATION ====================
-
 const simplifyDebts = (balances) => {
     const creditors = [];
     const debtors = [];
 
-    // Separate people who should receive money
-    // and people who should pay money
     balances.forEach(person => {
         const balance = Number(person.balance);
 
@@ -27,7 +23,6 @@ const simplifyDebts = (balances) => {
     let creditorIndex = 0;
     let debtorIndex = 0;
 
-    // Match debtors with creditors
     while (
         creditorIndex < creditors.length &&
         debtorIndex < debtors.length
@@ -43,22 +38,19 @@ const simplifyDebts = (balances) => {
         settlements.push({
             from: debtor.user,
             fromEmail: debtor.email,
-
             to: creditor.user,
             toEmail: creditor.email,
-
+            upiId: creditor.upiId || "",
             amount: Number(payment.toFixed(2))
         });
 
         creditor.amount -= payment;
         debtor.amount -= payment;
 
-        // Move to next creditor when fully paid
         if (creditor.amount <= 0.01) {
             creditorIndex++;
         }
 
-        // Move to next debtor when fully paid
         if (debtor.amount <= 0.01) {
             debtorIndex++;
         }
@@ -66,6 +58,5 @@ const simplifyDebts = (balances) => {
 
     return settlements;
 };
-
 
 module.exports = simplifyDebts;

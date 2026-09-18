@@ -1,762 +1,751 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import Navbar from "../Navbar";
 import socket from "../socket";
 import { QRCodeCanvas } from "qrcode.react";
+import API_BASE_URL from "../config";
 
 function Settlements() {
-    const [groups, setGroups] = useState([]);
-    const [selectedGroup, setSelectedGroup] = useState("");
-    const [settlements, setSettlements] = useState([]);
-    const [loading, setLoading] = useState(false);
+  const [groups, setGroups] = useState([]);
+  const [selectedGroup, setSelectedGroup] = useState("");
+  const [settlements, setSettlements] = useState([]);
+  const [loading, setLoading] = useState(false);
 
-    const [showQR, setShowQR] = useState(false);
-    const [selectedSettlement, setSelectedSettlement] =
-        useState(null);
+  const [showQR, setShowQR] = useState(false);
+  const [selectedSettlement, setSelectedSettlement] =
+    useState(null);
 
-    // ==================== FETCH GROUPS ====================
+  // ==================== FETCH GROUPS ====================
 
-    const fetchGroups = async () => {
-        try {
-            const token = localStorage.getItem("token");
+  const fetchGroups = async () => {
+    try {
+      const token = localStorage.getItem("token");
 
-            const response = await fetch(
-                "http://localhost:5000/api/groups",
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
-            );
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setGroups(data.groups || []);
-
-                if (
-                    data.groups?.length > 0 &&
-                    !selectedGroup
-                ) {
-                    setSelectedGroup(data.groups[0]._id);
-                }
-            }
-        } catch (error) {
-            console.error(
-                "Failed to fetch groups:",
-                error
-            );
+      const response = await fetch(
+        `${API_BASE_URL}/api/groups`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
         }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setGroups(data.groups || []);
+
+        if (
+          data.groups?.length > 0 &&
+          !selectedGroup
+        ) {
+          setSelectedGroup(data.groups[0]._id);
+        }
+      } else {
+        toast.error(
+          data.message || "Unable to load groups"
+        );
+      }
+    } catch (error) {
+      console.error("Failed to fetch groups:", error);
+      toast.error("Unable to connect to server");
+    }
+  };
+
+  // ==================== FETCH SETTLEMENTS ====================
+
+  const fetchSettlements = async (groupId) => {
+    if (!groupId) {
+      setSettlements([]);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/expenses/group/${groupId}/settlements`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSettlements(data.settlements || []);
+      } else {
+        setSettlements([]);
+        toast.error(
+          data.message || "Unable to load settlements"
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Failed to fetch settlements:",
+        error
+      );
+
+      setSettlements([]);
+      toast.error("Unable to connect to server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ==================== SOCKET ====================
+
+  useEffect(() => {
+    fetchGroups();
+
+    socket.connect();
+
+    const handleExpenseAdded = (data) => {
+      if (
+        data?.expense?.group &&
+        data.expense.group.toString() === selectedGroup
+      ) {
+        fetchSettlements(selectedGroup);
+      }
     };
 
-    // ==================== FETCH SETTLEMENTS ====================
-
-    const fetchSettlements = async (groupId) => {
-        if (!groupId) return;
-
-        try {
-            setLoading(true);
-
-            const token = localStorage.getItem("token");
-
-            const response = await fetch(
-                `http://localhost:5000/api/expenses/group/${groupId}/settlements`,
-                {
-                    headers: {
-                        Authorization: `Bearer ${token}`
-                    }
-                }
-            );
-
-            const data = await response.json();
-
-            if (response.ok) {
-                setSettlements(
-                    data.settlements || []
-                );
-            } else {
-                setSettlements([]);
-            }
-        } catch (error) {
-            console.error(
-                "Failed to fetch settlements:",
-                error
-            );
-
-            setSettlements([]);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    // ==================== SOCKET ====================
-
-    useEffect(() => {
-        fetchGroups();
-
-        socket.connect();
-
-        const handleExpenseAdded = (data) => {
-            if (
-                data?.expense?.group &&
-                data.expense.group.toString() ===
-                    selectedGroup
-            ) {
-                fetchSettlements(selectedGroup);
-            }
-        };
-
-        const handleExpenseDeleted = () => {
-            if (selectedGroup) {
-                fetchSettlements(selectedGroup);
-            }
-        };
-
-        const handleGroupUpdated = () => {
-            fetchGroups();
-
-            if (selectedGroup) {
-                fetchSettlements(selectedGroup);
-            }
-        };
-
-        socket.on(
-            "expenseAdded",
-            handleExpenseAdded
-        );
-
-        socket.on(
-            "expenseDeleted",
-            handleExpenseDeleted
-        );
-
-        socket.on(
-            "groupUpdated",
-            handleGroupUpdated
-        );
-
-        return () => {
-            socket.off(
-                "expenseAdded",
-                handleExpenseAdded
-            );
-
-            socket.off(
-                "expenseDeleted",
-                handleExpenseDeleted
-            );
-
-            socket.off(
-                "groupUpdated",
-                handleGroupUpdated
-            );
-
-            socket.disconnect();
-        };
-    }, [selectedGroup]);
-
-    // ==================== GROUP CHANGE ====================
-
-    useEffect(() => {
+    const handleExpenseDeleted = (data) => {
+      if (
+        !data?.expense?.group ||
+        data.expense.group.toString() === selectedGroup
+      ) {
         if (selectedGroup) {
-            fetchSettlements(selectedGroup);
+          fetchSettlements(selectedGroup);
         }
-    }, [selectedGroup]);
-
-    // ==================== UPI QR PAYMENT ====================
-
-    const createUPILink = (settlement) => {
-        const amount = Number(
-            settlement.amount
-        ).toFixed(2);
-
-        const receiverName =
-            settlement.toEmail ||
-            "DueEase Member";
-
-        return (
-            `upi://pay?pa=${encodeURIComponent(
-                settlement.upiId
-            )}` +
-            `&pn=${encodeURIComponent(
-                receiverName
-            )}` +
-            `&am=${amount}` +
-            `&cu=INR`
-        );
+      }
     };
 
-    const handleUPIPayment = (settlement) => {
-        if (!settlement.upiId) {
-            alert(
-                "The receiver has not added a UPI ID yet."
-            );
+    const handleGroupUpdated = () => {
+      fetchGroups();
 
-            return;
-        }
-
-        setSelectedSettlement(settlement);
-        setShowQR(true);
+      if (selectedGroup) {
+        fetchSettlements(selectedGroup);
+      }
     };
 
-    const closeQR = () => {
-        setShowQR(false);
-        setSelectedSettlement(null);
+    socket.on("expenseAdded", handleExpenseAdded);
+    socket.on("expenseDeleted", handleExpenseDeleted);
+    socket.on("groupUpdated", handleGroupUpdated);
+
+    return () => {
+      socket.off("expenseAdded", handleExpenseAdded);
+      socket.off("expenseDeleted", handleExpenseDeleted);
+      socket.off("groupUpdated", handleGroupUpdated);
+      socket.disconnect();
     };
+  }, [selectedGroup]);
 
-    // ==================== TOTAL ====================
+  // ==================== GROUP CHANGE ====================
 
-    const totalAmount = settlements.reduce(
-        (total, settlement) =>
-            total +
-            Number(settlement.amount || 0),
-        0
-    );
+  useEffect(() => {
+    if (selectedGroup) {
+      fetchSettlements(selectedGroup);
+    }
+  }, [selectedGroup]);
 
-    // ==================== UI ====================
+  // ==================== UPI QR PAYMENT ====================
+
+  const createUPILink = (settlement) => {
+    const amount = Number(
+      settlement.amount
+    ).toFixed(2);
+
+    const receiverName =
+      settlement.toEmail ||
+      "DueEase Member";
 
     return (
-        <div className="app">
+      `upi://pay?pa=${encodeURIComponent(
+        settlement.upiId
+      )}` +
+      `&pn=${encodeURIComponent(
+        receiverName
+      )}` +
+      `&am=${amount}` +
+      `&cu=INR`
+    );
+  };
 
-            <Navbar />
+  const handleUPIPayment = (settlement) => {
+    if (!settlement.upiId) {
+      toast.error(
+        "The receiver has not added a UPI ID yet."
+      );
 
-            <div className="container">
+      return;
+    }
 
-                <div className="page-header">
+    setSelectedSettlement(settlement);
+    setShowQR(true);
+  };
+
+  const closeQR = () => {
+    setShowQR(false);
+    setSelectedSettlement(null);
+  };
+
+  // ==================== TOTAL ====================
+
+  const totalAmount = settlements.reduce(
+    (total, settlement) =>
+      total +
+      Number(settlement.amount || 0),
+    0
+  );
+
+  // ==================== UI ====================
+
+  return (
+    <div className="app">
+      <Navbar />
+
+      <main className="page-container">
+
+        {/* ==================== HEADER ==================== */}
+
+        <div className="page-header settlement-page-header">
+          <div>
+            <span className="settlement-eyebrow">
+              SMART DEBT MANAGEMENT
+            </span>
+
+            <h1>
+              Settlement Plan
+            </h1>
+
+            <p>
+              Simplified payments to settle all
+              group expenses with minimum
+              transactions.
+            </p>
+          </div>
+
+          <div className="settlement-header-icon">
+            ⇄
+          </div>
+        </div>
+
+        {/* ==================== GROUP SELECT ==================== */}
+
+        <section className="form-card settlement-selector-card">
+
+          <div className="settlement-selector-heading">
+            <div>
+              <h2>
+                Select Group
+              </h2>
+
+              <p>
+                Choose a group to view its
+                simplified payment plan.
+              </p>
+            </div>
+
+            <span className="settlement-live-badge">
+              ● Live
+            </span>
+          </div>
+
+          <select
+            value={selectedGroup}
+            onChange={(e) =>
+              setSelectedGroup(e.target.value)
+            }
+          >
+            <option value="">
+              Select a group
+            </option>
+
+            {groups.map((group) => (
+              <option
+                key={group._id}
+                value={group._id}
+              >
+                {group.name}
+              </option>
+            ))}
+          </select>
+
+        </section>
+
+        {/* ==================== EMPTY BEFORE GROUP ==================== */}
+
+        {!selectedGroup && (
+          <section className="settlement-welcome">
+            <div className="settlement-welcome-icon">
+              ⇄
+            </div>
+
+            <h2>
+              Simplify your group payments
+            </h2>
+
+            <p>
+              Select a group above and DueEase
+              will calculate who needs to pay
+              whom with fewer transactions.
+            </p>
+          </section>
+        )}
+
+        {selectedGroup && (
+          <>
+            {/* ==================== SUMMARY ==================== */}
+
+            <section className="settlement-summary">
+
+              <div className="settlement-summary-card">
+                <div className="settlement-summary-icon">
+                  ⇄
+                </div>
+
+                <div>
+                  <span>
+                    Total Transactions
+                  </span>
+
+                  <h2>
+                    {settlements.length}
+                  </h2>
+
+                  <small>
+                    Payments required
+                  </small>
+                </div>
+              </div>
+
+              <div className="settlement-summary-card">
+                <div className="settlement-summary-icon">
+                  ₹
+                </div>
+
+                <div>
+                  <span>
+                    Total Settlement Amount
+                  </span>
+
+                  <h2>
+                    ₹{totalAmount.toFixed(2)}
+                  </h2>
+
+                  <small>
+                    Outstanding amount
+                  </small>
+                </div>
+              </div>
+
+              <div className="settlement-summary-card">
+                <div className="settlement-summary-icon">
+                  ✓
+                </div>
+
+                <div>
+                  <span>
+                    Settlement Method
+                  </span>
+
+                  <h2>
+                    Minimum
+                  </h2>
+
+                  <small>
+                    Fewer payment transactions
+                  </small>
+                </div>
+              </div>
+
+            </section>
+
+            {/* ==================== LOADING ==================== */}
+
+            {loading && (
+              <section className="empty-state settlement-loading-state">
+                <div className="settlement-loader">
+                  ⟳
+                </div>
+
+                <h3>
+                  Calculating settlement plan...
+                </h3>
+
+                <p>
+                  DueEase is finding the simplest
+                  way to settle the group expenses.
+                </p>
+              </section>
+            )}
+
+            {/* ==================== NO SETTLEMENTS ==================== */}
+
+            {!loading &&
+              settlements.length === 0 && (
+                <section className="settlement-success-state">
+
+                  <div className="settlement-success-icon">
+                    ✓
+                  </div>
+
+                  <h2>
+                    All Settled!
+                  </h2>
+
+                  <p>
+                    There are currently no pending
+                    payments for this group.
+                  </p>
+
+                </section>
+              )}
+
+            {/* ==================== SETTLEMENT LIST ==================== */}
+
+            {!loading &&
+              settlements.length > 0 && (
+                <section className="balances-section settlement-list-section">
+
+                  <div className="section-title">
                     <div>
-                        <h1>
-                            Settlement Plan
-                        </h1>
+                      <h2>
+                        Who Pays Whom
+                      </h2>
 
-                        <p>
-                            Simplified payments to
-                            settle all group expenses
-                            with minimum transactions.
-                        </p>
+                      <p>
+                        DueEase automatically
+                        simplifies debts to reduce
+                        unnecessary transactions.
+                      </p>
                     </div>
-                </div>
 
-                {/* ==================== GROUP SELECT ==================== */}
+                    <span className="member-count-badge">
+                      {settlements.length}{" "}
+                      {settlements.length === 1
+                        ? "Payment"
+                        : "Payments"}
+                    </span>
+                  </div>
 
-                <div className="card">
+                  <div className="settlement-list">
 
-                    <label>
-                        Select Group
-                    </label>
+                    {settlements.map(
+                      (settlement, index) => (
+                        <div
+                          className="settlement-card"
+                          key={index}
+                        >
 
-                    <select
-                        value={selectedGroup}
-                        onChange={(e) =>
-                            setSelectedGroup(
-                                e.target.value
-                            )
-                        }
-                    >
-                        <option value="">
-                            Select a group
-                        </option>
+                          {/* FROM */}
 
-                        {groups.map((group) => (
-                            <option
-                                key={group._id}
-                                value={group._id}
-                            >
-                                {group.name}
-                            </option>
-                        ))}
-                    </select>
+                          <div className="settlement-person">
+                            <span className="settlement-person-label">
+                              FROM
+                            </span>
 
-                </div>
-
-                {/* ==================== SUMMARY ==================== */}
-
-                {selectedGroup && (
-                    <div
-                        style={{
-                            display: "grid",
-                            gridTemplateColumns:
-                                "repeat(auto-fit, minmax(200px, 1fr))",
-                            gap: "16px",
-                            marginBottom: "24px"
-                        }}
-                    >
-
-                        <div className="card">
-
-                            <h3>
-                                Total Transactions
-                            </h3>
-
-                            <h2>
-                                {settlements.length}
-                            </h2>
-
-                        </div>
-
-                        <div className="card">
-
-                            <h3>
-                                Total Settlement Amount
-                            </h3>
-
-                            <h2>
-                                ₹
-                                {totalAmount.toFixed(
-                                    2
-                                )}
-                            </h2>
-
-                        </div>
-
-                        <div className="card">
-
-                            <h3>
-                                Settlement Method
-                            </h3>
-
-                            <h2>
-                                Minimum
-                            </h2>
-
-                        </div>
-
-                    </div>
-                )}
-
-                {/* ==================== LOADING ==================== */}
-
-                {loading && (
-                    <div className="card">
-
-                        <p>
-                            Loading settlement plan...
-                        </p>
-
-                    </div>
-                )}
-
-                {/* ==================== NO SETTLEMENTS ==================== */}
-
-                {!loading &&
-                    selectedGroup &&
-                    settlements.length === 0 && (
-                        <div className="card">
-
-                            <h2>
-                                All Settled 🎉
-                            </h2>
-
-                            <p>
-                                There are currently no
-                                pending payments for this
-                                group.
-                            </p>
-
-                        </div>
-                    )}
-
-                {/* ==================== SETTLEMENT LIST ==================== */}
-
-                {!loading &&
-                    settlements.length > 0 && (
-                        <div className="card">
-
-                            <h2>
-                                Who Pays Whom
-                            </h2>
-
-                            <p
-                                style={{
-                                    color: "#6b7280",
-                                    marginBottom: "20px"
-                                }}
-                            >
-                                DueEase automatically
-                                simplifies debts to reduce
-                                unnecessary transactions.
-                            </p>
-
-                            <div
-                                style={{
-                                    display: "flex",
-                                    flexDirection:
-                                        "column",
-                                    gap: "16px"
-                                }}
-                            >
-
-                                {settlements.map(
-                                    (
-                                        settlement,
-                                        index
-                                    ) => (
-                                        <div
-                                            key={index}
-                                            style={{
-                                                border:
-                                                    "1px solid #e5e7eb",
-                                                borderRadius:
-                                                    "12px",
-                                                padding:
-                                                    "18px",
-                                                display:
-                                                    "flex",
-                                                alignItems:
-                                                    "center",
-                                                justifyContent:
-                                                    "space-between",
-                                                gap: "16px",
-                                                flexWrap:
-                                                    "wrap"
-                                            }}
-                                        >
-
-                                            {/* FROM */}
-
-                                            <div>
-
-                                                <small
-                                                    style={{
-                                                        color:
-                                                            "#6b7280"
-                                                    }}
-                                                >
-                                                    FROM
-                                                </small>
-
-                                                <h3
-                                                    style={{
-                                                        margin:
-                                                            "5px 0"
-                                                    }}
-                                                >
-                                                    {
-                                                        settlement.fromEmail
-                                                    }
-                                                </h3>
-
-                                            </div>
-
-                                            {/* ARROW */}
-
-                                            <div
-                                                style={{
-                                                    fontSize:
-                                                        "24px"
-                                                }}
-                                            >
-                                                →
-                                            </div>
-
-                                            {/* TO */}
-
-                                            <div>
-
-                                                <small
-                                                    style={{
-                                                        color:
-                                                            "#6b7280"
-                                                    }}
-                                                >
-                                                    TO
-                                                </small>
-
-                                                <h3
-                                                    style={{
-                                                        margin:
-                                                            "5px 0"
-                                                    }}
-                                                >
-                                                    {
-                                                        settlement.toEmail
-                                                    }
-                                                </h3>
-
-                                                {settlement.upiId && (
-                                                    <small
-                                                        style={{
-                                                            color:
-                                                                "#6b7280"
-                                                        }}
-                                                    >
-                                                        UPI:{" "}
-                                                        {
-                                                            settlement.upiId
-                                                        }
-                                                    </small>
-                                                )}
-
-                                            </div>
-
-                                            {/* AMOUNT + BUTTON */}
-
-                                            <div
-                                                style={{
-                                                    textAlign:
-                                                        "right"
-                                                }}
-                                            >
-
-                                                <div
-                                                    style={{
-                                                        fontSize:
-                                                            "22px",
-                                                        fontWeight:
-                                                            "700",
-                                                        marginBottom:
-                                                            "10px"
-                                                    }}
-                                                >
-                                                    ₹
-                                                    {Number(
-                                                        settlement.amount
-                                                    ).toFixed(
-                                                        2
-                                                    )}
-                                                </div>
-
-                                                <button
-                                                    onClick={() =>
-                                                        handleUPIPayment(
-                                                            settlement
-                                                        )
-                                                    }
-                                                    disabled={
-                                                        !settlement.upiId
-                                                    }
-                                                    style={{
-                                                        border:
-                                                            "none",
-                                                        background:
-                                                            settlement.upiId
-                                                                ? "#4f46e5"
-                                                                : "#9ca3af",
-                                                        color:
-                                                            "white",
-                                                        padding:
-                                                            "9px 16px",
-                                                        borderRadius:
-                                                            "8px",
-                                                        cursor:
-                                                            settlement.upiId
-                                                                ? "pointer"
-                                                                : "not-allowed",
-                                                        fontWeight:
-                                                            "600"
-                                                    }}
-                                                >
-                                                    Pay via UPI
-                                                </button>
-
-                                            </div>
-
-                                        </div>
-                                    )
-                                )}
-
+                            <div className="settlement-avatar settlement-avatar-from">
+                              {settlement.fromEmail
+                                ?.charAt(0)
+                                .toUpperCase() ||
+                                "U"}
                             </div>
 
+                            <div>
+                              <h3>
+                                {settlement.fromEmail}
+                              </h3>
+
+                              <p>
+                                Needs to pay
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* ARROW */}
+
+                          <div className="settlement-arrow">
+                            →
+                          </div>
+
+                          {/* TO */}
+
+                          <div className="settlement-person">
+                            <span className="settlement-person-label">
+                              TO
+                            </span>
+
+                            <div className="settlement-avatar settlement-avatar-to">
+                              {settlement.toEmail
+                                ?.charAt(0)
+                                .toUpperCase() ||
+                                "U"}
+                            </div>
+
+                            <div>
+                              <h3>
+                                {settlement.toEmail}
+                              </h3>
+
+                              <p>
+                                Should receive
+                              </p>
+
+                              {settlement.upiId && (
+                                <small>
+                                  UPI:{" "}
+                                  {settlement.upiId}
+                                </small>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* AMOUNT + PAYMENT */}
+
+                          <div className="settlement-payment">
+
+                            <div className="settlement-amount">
+                              ₹
+                              {Number(
+                                settlement.amount
+                              ).toFixed(2)}
+                            </div>
+
+                            {settlement.upiId ? (
+                              <button
+                                type="button"
+                                className="settlement-pay-button"
+                                onClick={() =>
+                                  handleUPIPayment(
+                                    settlement
+                                  )
+                                }
+                              >
+                                <span>₹</span>
+                                Pay via UPI
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                className="settlement-pay-button settlement-pay-disabled"
+                                disabled
+                              >
+                                UPI unavailable
+                              </button>
+                            )}
+
+                          </div>
+
                         </div>
+                      )
                     )}
 
-                {/* ==================== HOW IT WORKS ==================== */}
+                  </div>
 
-                <div className="card">
+                </section>
+              )}
 
-                    <h2>
-                        How settlement works
-                    </h2>
+            {/* ==================== HOW IT WORKS ==================== */}
 
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection:
-                                "column",
-                            gap: "12px"
-                        }}
-                    >
+            <section className="balance-info settlement-how-section">
 
-                        <p>
-                            <strong>1.</strong>{" "}
-                            DueEase calculates how much
-                            each member has paid.
-                        </p>
+              <div className="balance-info-header">
+                <span className="balance-info-icon">
+                  💡
+                </span>
 
-                        <p>
-                            <strong>2.</strong>{" "}
-                            It calculates who owes money
-                            and who should receive money.
-                        </p>
+                <div>
+                  <h2>
+                    How settlement works
+                  </h2>
 
-                        <p>
-                            <strong>3.</strong>{" "}
-                            The debt simplification
-                            algorithm matches debtors
-                            with creditors.
-                        </p>
-
-                        <p>
-                            <strong>4.</strong>{" "}
-                            The result is a simplified
-                            payment plan with fewer
-                            transactions.
-                        </p>
-
-                        <p>
-                            <strong>5.</strong>{" "}
-                            Members can scan the UPI QR
-                            code to initiate the payment.
-                        </p>
-
-                    </div>
-
+                  <p>
+                    DueEase uses debt simplification
+                    to reduce unnecessary payments.
+                  </p>
                 </div>
+              </div>
+
+              <div className="settlement-steps">
+
+                <div className="settlement-step">
+                  <span>1</span>
+
+                  <div>
+                    <strong>
+                      Calculate contributions
+                    </strong>
+
+                    <p>
+                      DueEase calculates how much
+                      each member has paid.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settlement-step">
+                  <span>2</span>
+
+                  <div>
+                    <strong>
+                      Find outstanding balances
+                    </strong>
+
+                    <p>
+                      It identifies who owes money
+                      and who should receive money.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settlement-step">
+                  <span>3</span>
+
+                  <div>
+                    <strong>
+                      Simplify the debts
+                    </strong>
+
+                    <p>
+                      The algorithm matches debtors
+                      with creditors.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settlement-step">
+                  <span>4</span>
+
+                  <div>
+                    <strong>
+                      Generate payment plan
+                    </strong>
+
+                    <p>
+                      The result is a simplified
+                      payment plan with fewer
+                      transactions.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="settlement-step">
+                  <span>5</span>
+
+                  <div>
+                    <strong>
+                      Pay using UPI
+                    </strong>
+
+                    <p>
+                      Members can scan the QR code
+                      to initiate the payment.
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+
+            </section>
+          </>
+        )}
+
+      </main>
+
+      {/* ==================== QR MODAL ==================== */}
+
+      {showQR &&
+        selectedSettlement && (
+          <div
+            className="settlement-qr-overlay"
+            onClick={closeQR}
+          >
+
+            <div
+              className="settlement-qr-modal"
+              onClick={(e) =>
+                e.stopPropagation()
+              }
+            >
+
+              <button
+                type="button"
+                className="settlement-qr-close"
+                onClick={closeQR}
+                aria-label="Close QR payment window"
+              >
+                ×
+              </button>
+
+              <div className="settlement-qr-icon">
+                ₹
+              </div>
+
+              <h2>
+                Scan to Pay
+              </h2>
+
+              <p className="settlement-qr-description">
+                Pay{" "}
+                <strong>
+                  ₹
+                  {Number(
+                    selectedSettlement.amount
+                  ).toFixed(2)}
+                </strong>{" "}
+                to
+              </p>
+
+              <h3>
+                {selectedSettlement.toEmail}
+              </h3>
+
+              <div className="settlement-qr-container">
+                <QRCodeCanvas
+                  value={createUPILink(
+                    selectedSettlement
+                  )}
+                  size={220}
+                  level="H"
+                />
+              </div>
+
+              <div className="settlement-qr-details">
+
+                <span>
+                  UPI ID
+                </span>
+
+                <strong>
+                  {selectedSettlement.upiId}
+                </strong>
+
+              </div>
+
+              <p className="settlement-qr-hint">
+                Scan this QR code using a UPI
+                app on your phone.
+              </p>
+
+              <button
+                type="button"
+                className="settlement-qr-close-button"
+                onClick={closeQR}
+              >
+                Close
+              </button>
 
             </div>
 
-            {/* ==================== QR MODAL ==================== */}
-
-            {showQR &&
-                selectedSettlement && (
-
-                    <div
-                        style={{
-                            position: "fixed",
-                            inset: 0,
-                            background:
-                                "rgba(0, 0, 0, 0.55)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent:
-                                "center",
-                            zIndex: 1000
-                        }}
-                        onClick={closeQR}
-                    >
-
-                        <div
-                            style={{
-                                background:
-                                    "white",
-                                borderRadius:
-                                    "16px",
-                                padding:
-                                    "30px",
-                                width: "360px",
-                                maxWidth: "90%",
-                                textAlign:
-                                    "center"
-                            }}
-                            onClick={(e) =>
-                                e.stopPropagation()
-                            }
-                        >
-
-                            <h2>
-                                Scan to Pay
-                            </h2>
-
-                            <p
-                                style={{
-                                    color:
-                                        "#6b7280"
-                                }}
-                            >
-                                Pay ₹
-                                {Number(
-                                    selectedSettlement.amount
-                                ).toFixed(
-                                    2
-                                )}{" "}
-                                to
-                            </p>
-
-                            <h3>
-                                {
-                                    selectedSettlement.toEmail
-                                }
-                            </h3>
-
-                            <div
-                                style={{
-                                    margin:
-                                        "25px auto",
-                                    display:
-                                        "flex",
-                                    justifyContent:
-                                        "center"
-                                }}
-                            >
-
-                                <QRCodeCanvas
-                                    value={createUPILink(
-                                        selectedSettlement
-                                    )}
-                                    size={220}
-                                    level="H"
-                                />
-
-                            </div>
-
-                            <p
-                                style={{
-                                    fontSize:
-                                        "13px",
-                                    color:
-                                        "#6b7280"
-                                }}
-                            >
-                                UPI ID:{" "}
-                                {
-                                    selectedSettlement.upiId
-                                }
-                            </p>
-
-                            <p
-                                style={{
-                                    fontSize:
-                                        "13px",
-                                    color:
-                                        "#6b7280",
-                                    marginTop:
-                                        "12px"
-                                }}
-                            >
-                                Scan this QR code
-                                using a UPI app on
-                                your phone.
-                            </p>
-
-                            <button
-                                onClick={closeQR}
-                                style={{
-                                    marginTop:
-                                        "15px",
-                                    border:
-                                        "none",
-                                    background:
-                                        "#374151",
-                                    color:
-                                        "white",
-                                    padding:
-                                        "10px 20px",
-                                    borderRadius:
-                                        "8px",
-                                    cursor:
-                                        "pointer",
-                                    fontWeight:
-                                        "600"
-                                }}
-                            >
-                                Close
-                            </button>
-
-                        </div>
-
-                    </div>
-                )}
-
-        </div>
-    );
+          </div>
+        )}
+    </div>
+  );
 }
 
 export default Settlements;

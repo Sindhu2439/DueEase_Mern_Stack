@@ -19,6 +19,12 @@ const userSchema = new mongoose.Schema(
         password: {
             type: String,
             required: true
+        },
+
+        upiId: {
+            type: String,
+            trim: true,
+            default: ""
         }
     },
     {
