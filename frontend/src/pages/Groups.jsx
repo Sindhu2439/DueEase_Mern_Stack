@@ -3,6 +3,7 @@ import toast from "react-hot-toast";
 
 import Navbar from "../Navbar";
 import socket from "../socket";
+import API_BASE_URL from "../config";
 
 function Groups() {
   const [groups, setGroups] = useState([]);
@@ -14,7 +15,6 @@ function Groups() {
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [addingMember, setAddingMember] = useState(false);
 
-
   // ==================== FETCH GROUPS ====================
 
   const fetchGroups = async () => {
@@ -22,7 +22,7 @@ function Groups() {
       const token = localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/groups",
+        `${API_BASE_URL}/api/groups`,
         {
           headers: {
             Authorization: `Bearer ${token}`
@@ -52,7 +52,6 @@ function Groups() {
     }
   };
 
-
   // ==================== SOCKET ====================
 
   useEffect(() => {
@@ -79,7 +78,6 @@ function Groups() {
     };
   }, []);
 
-
   // ==================== JOIN GROUP ROOMS ====================
 
   useEffect(() => {
@@ -92,7 +90,6 @@ function Groups() {
       });
     }
   }, [groups]);
-
 
   // ==================== CREATE GROUP ====================
 
@@ -113,7 +110,7 @@ function Groups() {
         localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/groups",
+        `${API_BASE_URL}/api/groups`,
         {
           method: "POST",
 
@@ -167,7 +164,6 @@ function Groups() {
     }
   };
 
-
   // ==================== ADD MEMBER ====================
 
   const handleAddMember = async (e) => {
@@ -195,7 +191,7 @@ function Groups() {
         localStorage.getItem("token");
 
       const response = await fetch(
-        `http://localhost:5000/api/groups/${selectedGroup}/members`,
+        `${API_BASE_URL}/api/groups/${selectedGroup}/members`,
         {
           method: "POST",
 
@@ -250,7 +246,6 @@ function Groups() {
     }
   };
 
-
   // ==================== TOTAL MEMBERS ====================
 
   const totalMembers =
@@ -261,7 +256,6 @@ function Groups() {
       0
     );
 
-
   // ==================== UI ====================
 
   return (
@@ -270,7 +264,6 @@ function Groups() {
       <Navbar />
 
       <main className="page-container">
-
 
         {/* ==================== HEADER ==================== */}
 
@@ -291,11 +284,9 @@ function Groups() {
 
         </div>
 
-
         {/* ==================== STATS ==================== */}
 
         <section className="dashboard-stats">
-
 
           <div className="stat-card">
 
@@ -319,7 +310,6 @@ function Groups() {
 
           </div>
 
-
           <div className="stat-card">
 
             <div className="stat-icon">
@@ -341,7 +331,6 @@ function Groups() {
             </div>
 
           </div>
-
 
           <div className="stat-card">
 
@@ -365,14 +354,11 @@ function Groups() {
 
           </div>
 
-
         </section>
-
 
         {/* ==================== FORMS ==================== */}
 
         <div className="form-grid">
-
 
           {/* ==================== CREATE GROUP ==================== */}
 
@@ -426,7 +412,6 @@ function Groups() {
             </form>
 
           </section>
-
 
           {/* ==================== ADD MEMBER ==================== */}
 
@@ -485,7 +470,6 @@ function Groups() {
 
               </select>
 
-
               <label>
                 Member Email
               </label>
@@ -516,14 +500,11 @@ function Groups() {
 
           </section>
 
-
         </div>
-
 
         {/* ==================== GROUPS ==================== */}
 
         <section className="groups-section">
-
 
           <div className="section-title">
 
@@ -552,7 +533,6 @@ function Groups() {
 
           </div>
 
-
           {/* ==================== LOADING ==================== */}
 
           {loading ? (
@@ -570,9 +550,7 @@ function Groups() {
 
             </div>
 
-
           ) : groups.length === 0 ? (
-
 
             /* ==================== EMPTY ==================== */
 
@@ -593,9 +571,7 @@ function Groups() {
 
             </div>
 
-
           ) : (
-
 
             /* ==================== GROUP GRID ==================== */
 
@@ -608,7 +584,6 @@ function Groups() {
                     className="group-card"
                     key={group._id}
                   >
-
 
                     <div className="group-card-header">
 
@@ -642,7 +617,6 @@ function Groups() {
 
                     </div>
 
-
                     <div className="group-member-summary">
 
                       <span>
@@ -656,13 +630,11 @@ function Groups() {
 
                     </div>
 
-
                     <div className="group-members-container">
 
                       <h4>
                         Group Members
                       </h4>
-
 
                       {group.members &&
                       group.members.length >
@@ -690,7 +662,6 @@ function Groups() {
                                     : "U"}
 
                                 </div>
-
 
                                 <div className="member-info">
 
@@ -725,7 +696,6 @@ function Groups() {
 
                     </div>
 
-
                   </div>
 
                 )
@@ -736,7 +706,6 @@ function Groups() {
           )}
 
         </section>
-
 
         {/* ==================== HIGHLIGHT ==================== */}
 
@@ -762,7 +731,6 @@ function Groups() {
           </div>
 
         </section>
-
 
       </main>
 

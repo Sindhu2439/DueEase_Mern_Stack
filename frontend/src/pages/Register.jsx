@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import API_BASE_URL from "../config";
 
 function Register() {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ function Register() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/register",
+        `${API_BASE_URL}/api/auth/register`,
         {
           method: "POST",
           headers: {
@@ -101,7 +102,6 @@ function Register() {
 
         </div>
 
-
         <form
           className="auth-form"
           onSubmit={handleRegister}
@@ -126,7 +126,6 @@ function Register() {
 
           </div>
 
-
           <div className="form-group">
 
             <label htmlFor="register-email">
@@ -145,7 +144,6 @@ function Register() {
             />
 
           </div>
-
 
           <div className="form-group">
 
@@ -166,20 +164,17 @@ function Register() {
 
           </div>
 
-
           {error && (
             <div className="auth-error">
               ⚠️ {error}
             </div>
           )}
 
-
           {success && (
             <div className="auth-success">
               ✅ {success}
             </div>
           )}
-
 
           <button
             type="submit"
@@ -192,7 +187,6 @@ function Register() {
           </button>
 
         </form>
-
 
         <div className="auth-footer">
 

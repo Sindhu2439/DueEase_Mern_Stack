@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import Navbar from "../Navbar";
+import API_BASE_URL from "../config";
 
 function Profile() {
     const [user, setUser] = useState(null);
@@ -19,7 +20,7 @@ function Profile() {
             const token = localStorage.getItem("token");
 
             const response = await fetch(
-                "http://localhost:5000/api/auth/profile",
+                `${API_BASE_URL}/api/auth/profile`,
                 {
                     headers: {
                         Authorization: `Bearer ${token}`
@@ -69,7 +70,7 @@ function Profile() {
             const token = localStorage.getItem("token");
 
             const response = await fetch(
-                "http://localhost:5000/api/auth/profile",
+                `${API_BASE_URL}/api/auth/profile`,
                 {
                     method: "PUT",
                     headers: {
@@ -123,7 +124,7 @@ function Profile() {
             const token = localStorage.getItem("token");
 
             const response = await fetch(
-                "http://localhost:5000/api/auth/upi",
+                `${API_BASE_URL}/api/auth/upi`,
                 {
                     method: "PUT",
                     headers: {

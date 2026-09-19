@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import API_BASE_URL from "../config";
 
 function Login() {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ function Login() {
       setLoading(true);
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/login",
+        `${API_BASE_URL}/api/auth/login`,
         {
           method: "POST",
           headers: {
@@ -89,7 +90,6 @@ function Login() {
 
         </div>
 
-
         <form
           className="auth-form"
           onSubmit={handleLogin}
@@ -114,7 +114,6 @@ function Login() {
 
           </div>
 
-
           <div className="form-group">
 
             <label htmlFor="password">
@@ -134,13 +133,11 @@ function Login() {
 
           </div>
 
-
           {error && (
             <div className="auth-error">
               ⚠️ {error}
             </div>
           )}
-
 
           <button
             type="submit"
@@ -153,7 +150,6 @@ function Login() {
           </button>
 
         </form>
-
 
         <div className="auth-footer">
 
