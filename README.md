@@ -168,3 +168,8 @@ DueEase/
 
 └── README.md
 
+## 📸 Screenshots
+
+### Dashboard
+
+![DueEase Dashboard](screenshots/dashboard.png)
