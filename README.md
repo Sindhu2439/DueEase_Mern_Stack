@@ -171,5 +171,15 @@ DueEase/
 ## 📸 Screenshots
 
 ### Dashboard
+## 📸 Screenshots
+
+### Dashboard
 
 ![DueEase Dashboard](screenshots/dashboard.png)
+
+### Expenses
+
+![DueEase Expenses](screenshots/expenses.png)
+
+
+
