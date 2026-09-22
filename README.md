@@ -181,5 +181,8 @@ DueEase/
 
 ![DueEase Expenses](screenshots/expenses.png)
 
+### Balances
+
+![DueEase Balances](screenshots/balances.png)
 
 
