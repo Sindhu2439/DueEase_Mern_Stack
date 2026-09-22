@@ -189,4 +189,8 @@ DueEase/
 
 ![DueEase Analytics](screenshots/analytics.png)
 
+### Settlements
+
+![DueEase Settlements](screenshots/settlements.png)
+
 
