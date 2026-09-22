@@ -185,4 +185,8 @@ DueEase/
 
 ![DueEase Balances](screenshots/balances.png)
 
+### Analytics
+
+![DueEase Analytics](screenshots/analytics.png)
+
 
