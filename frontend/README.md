@@ -1,16 +1,85 @@
-# React + Vite
+# DueEase 💰
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A full-stack expense management application that helps groups track shared expenses, calculate balances, and simplify settlements.
 
-Currently, two official plugins are available:
+## 🚀 Live Demo
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+**Frontend:** https://dueease-frontend.onrender.com
 
-## React Compiler
+**Backend:** https://dueease-backend.onrender.com
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## ✨ Features
 
-## Expanding the Oxlint configuration
+- User registration and login
+- JWT-based authentication
+- Create and manage groups
+- Add group members
+- Create shared expenses
+- Equal, exact, and percentage-based splitting
+- Automatic balance calculation
+- Debt simplification for minimum settlement transactions
+- Settlement management
+- Real-time updates using Socket.IO
+- Expense search and filtering
+- Expense pagination
+- Analytics dashboard
+- Spending summaries
+- UPI payment QR generation
+- User profile and UPI ID management
+- Responsive mobile-friendly interface
+- Production deployment
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+## 🛠️ Tech Stack
+
+### Frontend
+- React
+- Vite
+- React Router
+- Axios
+- Socket.IO Client
+- React Hot Toast
+- Recharts
+- QRCode React
+
+### Backend
+- Node.js
+- Express.js
+- MongoDB
+- Mongoose
+- JWT
+- bcryptjs
+- Socket.IO
+
+### Deployment
+- Render
+- MongoDB Atlas
+
+## 🧠 Debt Simplification
+
+DueEase calculates each member's net balance and simplifies the debts so that the group can settle using fewer transactions.
+
+For example:
+
+Instead of:
+
+- A pays B
+- B pays C
+- C pays A
+
+the application calculates the net amounts and produces a simplified settlement plan.
+
+## 📂 Project Structure
+
+```text
+DueEase/
+├── middleware/
+├── models/
+├── routes/
+├── utils/
+├── frontend/
+│   └── src/
+├── server.js
+├── package.json
+├── package-lock.json
+├── .gitignorscre
+└── README.md
