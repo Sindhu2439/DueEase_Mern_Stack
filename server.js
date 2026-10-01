@@ -10,6 +10,7 @@ const authMiddleware = require("./middleware/authMiddleware");
 const groupRoutes = require("./routes/groupRoutes");
 const expenseRoutes = require("./routes/expenseRoutes");
 const receiptRoutes = require("./routes/receiptRoutes");
+const aiReceiptRoutes = require("./routes/aiReceiptRoutes");
 
 // ==================== EXPRESS APP ====================
 
@@ -67,6 +68,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/groups", groupRoutes);
 app.use("/api/expenses", expenseRoutes);
 app.use("/api/receipts", receiptRoutes);
+app.use("/api/receipts", aiReceiptRoutes);
 
 // ==================== HOME ROUTE ====================
 
